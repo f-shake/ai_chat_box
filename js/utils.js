@@ -246,3 +246,43 @@ function autoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 150) + 'px';
 }
+
+// ==================== Theme ====================
+
+/** Initialize theme: check saved preference, then system preference */
+function initTheme() {
+  const saved = ls.getItem('ai_chat_theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  let theme;
+  if (saved === 'dark' || saved === 'light') {
+    theme = saved;
+  } else {
+    theme = prefersDark ? 'dark' : 'light';
+  }
+
+  applyTheme(theme);
+}
+
+/** Apply theme and update button icon */
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+/** Toggle between light and dark */
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try { ls.setItem('ai_chat_theme', next); } catch (_) {}
+}
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  const saved = ls.getItem('ai_chat_theme');
+  if (!saved) {
+    applyTheme(e.matches ? 'dark' : 'light');
+  }
+});

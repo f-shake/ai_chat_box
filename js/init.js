@@ -1,6 +1,7 @@
 // ==================== Init ====================
 (async function init() {
   await initDB();
+  initTheme();
 
 loadConversations();
 loadActiveId();

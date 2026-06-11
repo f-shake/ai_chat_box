@@ -27,6 +27,7 @@
     <button onclick="showExportDialog()" title="导出数据">导出</button>
     <button onclick="showImportDialog()" title="导入数据">导入</button>
     <button onclick="clearMessages()" title="清空当前对话">清空</button>
+    <button class="theme-toggle" onclick="toggleTheme()" title="切换暗色模式" id="themeBtn">🌙</button>
   </div>
 </header>
 
@@ -112,7 +113,7 @@
         <div class="api-config-loading">加载中…</div>
       </div>
 
-      <div class="connection-status" style="margin-top:auto;padding-top:10px;border-top:1px solid #eee">
+      <div class="connection-status">
         <span class="status-dot offline" id="statusDot"></span>
         <span id="statusText">未连接</span>
         <button class="btn-outline btn-sm" id="testBtn" onclick="testConnection()" style="margin-left:auto">测试连接</button>
@@ -160,7 +161,7 @@
         <span class="hint">设为 0 则不携带上下文</span>
       </div>
 
-      <hr style="border:none;border-top:1px solid #eee;margin:4px 0">
+      <hr class="sidebar-hr">
       <div style="display:flex;gap:6px">
         <button class="btn-success" onclick="saveConfig()" style="flex:1">保存参数</button>
         <button class="btn-outline" onclick="resetConfig()">重置</button>
