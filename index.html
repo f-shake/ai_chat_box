@@ -64,14 +64,18 @@
           <span class="input-toggle-track"></span>
           <span class="input-toggle-label">深度思考</span>
         </label>
+        <span class="editing-indicator hidden" id="editingIndicator">
+          <span class="editing-badge">编辑中</span>
+          <button class="editing-cancel" onclick="cancelEdit()" title="取消编辑">✕</button>
+        </span>
+        <label class="upload-icon-btn" id="uploadLabel" title="上传文件或图片">
+          <input type="file" id="fileInput" multiple accept=".txt,.md,.csv,.json,.xml,.js,.py,.html,.css,.yaml,.yml,.toml,.docx,image/*" hidden>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+        </label>
       </div>
       <div class="file-preview-strip" id="filePreviewStrip"></div>
       <textarea id="userInput" rows="1" placeholder="输入消息… (Enter 发送, Shift+Enter 换行)" disabled
                 onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
-      <label class="upload-btn" id="uploadLabel" title="上传文件或图片">
-        <input type="file" id="fileInput" multiple accept=".txt,.md,.csv,.json,.xml,.js,.py,.html,.css,.yaml,.yml,.toml,.docx,image/*" hidden>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-      </label>
       <button id="sendBtn" onclick="sendMessage()" disabled title="发送 (Enter)">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>

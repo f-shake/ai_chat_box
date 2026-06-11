@@ -64,6 +64,14 @@ async function sendMessage(text) {
   if (typeof userContent === 'string' && !userContent) return;
   if (isStreaming) return;
 
+  // Handle edit mode: truncate messages at the edited index (after content is built, before pushing)
+  if (editingMsgIdx >= 0) {
+    currentConvMessages = currentConvMessages.slice(0, editingMsgIdx);
+    msgCounter = 0;
+    cancelEdit();
+    renderMessages();
+  }
+
   const url = apiUrl.value.trim().replace(/\/+$/, '');
   const key = apiKey.value.trim();
   const mdl = model.value.trim();
@@ -89,7 +97,7 @@ async function sendMessage(text) {
   const _pushedUser = !window._skipUserPush;
   if (_pushedUser) {
     currentConvMessages.push({ role: 'user', content: userContent });
-    addMessageDOM('user', userContent);
+    addMessageDOM('user', userContent, false, currentConvMessages.length - 1);
   }
   window._skipUserPush = false;
   $('emptyState').classList.add('hidden');
@@ -105,7 +113,8 @@ async function sendMessage(text) {
   const historyLimitVal = parseInt(historyLimit.value) || 20;
   const msgsForApi = [];
   if (sys) msgsForApi.push({ role: 'system', content: sys });
-  const slice = historyLimitVal > 0 ? currentConvMessages.slice(-historyLimitVal * 2) : [];
+  // Use history slice excluding the last message (current user msg), then append current msg once
+  const slice = historyLimitVal > 0 ? currentConvMessages.slice(-historyLimitVal * 2, -1) : [];
   for (const m of slice) msgsForApi.push({ role: m.role, content: flattenContentForApi(m.content) });
   msgsForApi.push({ role: 'user', content: flattenContentForApi(userContent) });
 
@@ -209,8 +218,11 @@ async function sendMessage(text) {
     if (convDirty) convDirty.updatedAt = getNow();
     saveCurrentConversation();
     addMessageActions(msgId);
-    // Async title generation — non-blocking
-    setTimeout(() => generateConversationTitle(), 100);
+    // Async title generation — only for the first user message
+    const userMsgCount = currentConvMessages.filter(m => m.role === 'user').length;
+    if (userMsgCount <= 1) {
+      setTimeout(() => generateConversationTitle(), 100);
+    }
 
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -333,10 +345,9 @@ function enableChat(on) {
   $('sendBtn').disabled = !on;
   const uploadLabel = $('uploadLabel');
   if (uploadLabel) {
+    uploadLabel.classList.toggle('disabled', !on);
     const inp = uploadLabel.querySelector('input[type="file"]');
     if (inp) inp.disabled = !on;
-    uploadLabel.style.opacity = on ? '1' : '0.4';
-    uploadLabel.style.pointerEvents = on ? 'auto' : 'none';
   }
   if (on) $('userInput').focus();
 }
@@ -422,6 +433,11 @@ function exportChat() {
 
 // ==================== Key handler ====================
 function handleKeyDown(e) {
+  if (e.key === 'Escape' && editingMsgIdx >= 0) {
+    e.preventDefault();
+    cancelEdit();
+    return;
+  }
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();

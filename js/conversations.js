@@ -6,10 +6,12 @@ let msgCounter = 0;
 let controller = null;
 let isStreaming = false;
 let pendingFiles = []; // { name, size, mime, content, _type }[]
+let editingMsgIdx = -1; // index in currentConvMessages being edited, -1 = none
 
 // ==================== SVG icon paths ====================
 const ICON_COPY = '<svg viewBox="0 0 1024 1024"><path d="M661.333333 234.666667A64 64 0 0 1 725.333333 298.666667v597.333333a64 64 0 0 1-64 64h-469.333333A64 64 0 0 1 128 896V298.666667a64 64 0 0 1 64-64z m-21.333333 85.333333H213.333333v554.666667h426.666667v-554.666667z m191.829333-256a64 64 0 0 1 63.744 57.856l0.256 6.144v575.701333a42.666667 42.666667 0 0 1-85.034666 4.992l-0.298667-4.992V149.333333H384a42.666667 42.666667 0 0 1-42.368-37.674666L341.333333 106.666667a42.666667 42.666667 0 0 1 37.674667-42.368L384 64h447.829333z" fill="currentColor"/></svg>';
 const ICON_REGEN = '<svg viewBox="0 0 1024 1024"><path d="M910.848 307.84A448.192 448.192 0 0 0 78.976 396.544c-7.04 26.88 14.4 51.456 42.176 51.456 22.08 0 40.64-15.744 46.848-36.928a358.528 358.528 0 0 1 664.128-60.352l-79.424-21.312a44.8 44.8 0 0 0-23.168 86.592l173.056 46.336q23.04 6.208 43.712-5.76 20.672-11.904 26.88-34.944l46.336-173.12a44.8 44.8 0 1 0-86.528-23.168l-22.144 82.56zM52.864 600L6.4 773.12a44.8 44.8 0 0 0 86.528 23.168l20.992-78.4a448.192 448.192 0 0 0 830.976-90.432c7.168-26.88-14.336-51.456-42.112-51.456-22.08 0-40.64 15.744-46.848 36.928a358.592 358.592 0 0 1-665.792 56.96l83.072 22.336a44.8 44.8 0 0 0 23.168-86.592L123.392 559.36q-23.04-6.208-43.712 5.76-20.672 11.904-26.88 34.944z" fill="currentColor"/></svg>';
+const ICON_EDIT = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
 
 // ==================== File Upload Handling ====================
 
@@ -384,9 +386,9 @@ function renderMessages() {
 
   empty.classList.add('hidden');
 
-  for (const msg of currentConvMessages) {
-    addMessageDOM(msg.role, msg.content, false);
-  }
+  currentConvMessages.forEach((msg, i) => {
+    addMessageDOM(msg.role, msg.content, false, i);
+  });
   container.scrollTop = container.scrollHeight;
 }
 
@@ -439,7 +441,7 @@ function toggleFileContent(id) {
   }
 }
 
-function addMessageDOM(role, content, isPlaceholder = false) {
+function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
   const id = `msg-${++msgCounter}`;
   const div = document.createElement('div');
   div.className = `message ${role}`;
@@ -503,6 +505,7 @@ function addMessageDOM(role, content, isPlaceholder = false) {
         ${isPlaceholder ? '' : `
         <span class="msg-actions">
           <button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
+          ${role === 'user' && msgIdx >= 0 ? `<button class="msg-action-btn" onclick="editMessage(${msgIdx})" title="编辑">${ICON_EDIT}</button>` : ''}
           ${role === 'assistant' ? `<button class="msg-action-btn" onclick="regenerateMessage()" title="重新生成">${ICON_REGEN}</button>` : ''}
         </span>`}
       </div>`;
@@ -613,6 +616,70 @@ function updateMessageWithReasoning(id, reasoning, content) {
   if (ts) bubble.appendChild(ts);
   if (actions) bubble.appendChild(actions);
   $('messageContainer').scrollTop = $('messageContainer').scrollHeight;
+}
+
+// ==================== Edit message ====================
+
+function editMessage(idx) {
+  if (idx < 0 || idx >= currentConvMessages.length) return;
+  if (isStreaming) { showToast('请先停止当前生成', 'error'); return; }
+
+  const msg = currentConvMessages[idx];
+  if (msg.role !== 'user') return;
+
+  // Extract text and file content
+  const text = extractTextParts(msg.content);
+
+  // Restore files/images to pendingFiles if present
+  clearPendingFiles();
+  if (Array.isArray(msg.content)) {
+    for (const part of msg.content) {
+      if (part.type === 'file') {
+        pendingFiles.push({
+          name: part.file.name,
+          size: part.file.size,
+          mime: part.file.mime,
+          content: part.file.content,
+          _type: 'text',
+        });
+      } else if (part.type === 'image_url') {
+        pendingFiles.push({
+          name: 'pasted_image.jpg',
+          size: Math.round(part.image_url.url.length * 3 / 4),
+          mime: 'image/jpeg',
+          content: part.image_url.url,
+          _type: 'image',
+        });
+      }
+    }
+    renderFilePreviews();
+  }
+
+  // Set editing state
+  editingMsgIdx = idx;
+
+  // Populate textarea
+  const input = $('userInput');
+  input.value = text;
+  autoResize(input);
+
+  // Show editing indicator
+  const indicator = $('editingIndicator');
+  if (indicator) indicator.classList.remove('hidden');
+  input.placeholder = '编辑消息…';
+  input.focus();
+}
+
+function cancelEdit() {
+  if (editingMsgIdx < 0) return;
+  editingMsgIdx = -1;
+  clearPendingFiles();
+  const input = $('userInput');
+  input.value = '';
+  input.placeholder = '输入消息… (Enter 发送, Shift+Enter 换行)';
+  autoResize(input);
+  const indicator = $('editingIndicator');
+  if (indicator) indicator.classList.add('hidden');
 }
 
 function getMessageContent(id) {
