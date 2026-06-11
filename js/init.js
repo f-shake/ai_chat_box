@@ -1,4 +1,7 @@
 // ==================== Init ====================
+(async function init() {
+  await initDB();
+
 loadConversations();
 loadActiveId();
 loadGroups();
@@ -101,3 +104,4 @@ if (savedApiUrl) {
 } else {
   enableChat(false);
 }
+})();
