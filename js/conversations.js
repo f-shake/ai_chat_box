@@ -5,10 +5,86 @@ let currentConvMessages = [];  // the messages array of the active conversation
 let msgCounter = 0;
 let controller = null;
 let isStreaming = false;
+let pendingFiles = []; // { name, size, mime, content, _type }[]
 
 // ==================== SVG icon paths ====================
 const ICON_COPY = '<svg viewBox="0 0 1024 1024"><path d="M661.333333 234.666667A64 64 0 0 1 725.333333 298.666667v597.333333a64 64 0 0 1-64 64h-469.333333A64 64 0 0 1 128 896V298.666667a64 64 0 0 1 64-64z m-21.333333 85.333333H213.333333v554.666667h426.666667v-554.666667z m191.829333-256a64 64 0 0 1 63.744 57.856l0.256 6.144v575.701333a42.666667 42.666667 0 0 1-85.034666 4.992l-0.298667-4.992V149.333333H384a42.666667 42.666667 0 0 1-42.368-37.674666L341.333333 106.666667a42.666667 42.666667 0 0 1 37.674667-42.368L384 64h447.829333z" fill="currentColor"/></svg>';
 const ICON_REGEN = '<svg viewBox="0 0 1024 1024"><path d="M910.848 307.84A448.192 448.192 0 0 0 78.976 396.544c-7.04 26.88 14.4 51.456 42.176 51.456 22.08 0 40.64-15.744 46.848-36.928a358.528 358.528 0 0 1 664.128-60.352l-79.424-21.312a44.8 44.8 0 0 0-23.168 86.592l173.056 46.336q23.04 6.208 43.712-5.76 20.672-11.904 26.88-34.944l46.336-173.12a44.8 44.8 0 1 0-86.528-23.168l-22.144 82.56zM52.864 600L6.4 773.12a44.8 44.8 0 0 0 86.528 23.168l20.992-78.4a448.192 448.192 0 0 0 830.976-90.432c7.168-26.88-14.336-51.456-42.112-51.456-22.08 0-40.64 15.744-46.848 36.928a358.592 358.592 0 0 1-665.792 56.96l83.072 22.336a44.8 44.8 0 0 0 23.168-86.592L123.392 559.36q-23.04-6.208-43.712 5.76-20.672 11.904-26.88 34.944z" fill="currentColor"/></svg>';
+
+// ==================== File Upload Handling ====================
+
+/**
+ * Handle file selection from input/drop/paste.
+ * Reads each file, compresses images, then renders previews.
+ */
+async function handleFileSelect(files) {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'text/plain', 'text/csv', 'text/html', 'text/css', 'text/javascript',
+    'application/json', 'application/xml', 'text/xml',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+  const IMAGE_FORMATS = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_FILES = 10;
+
+  const arr = Array.from(files);
+  const total = pendingFiles.length + arr.length;
+  if (total > MAX_FILES) {
+    showToast(`最多同时上传 ${MAX_FILES} 个文件`, 'error');
+    return;
+  }
+
+  for (const file of arr) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const isImage = file.type.startsWith('image/');
+    const isText = file.type.startsWith('text/');
+    const isDocx = ext === 'docx' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+    // Validate type
+    if (!isImage && !isText && !isDocx && !file.type) {
+      // Fallback: check extension for common text types
+      const textExts = ['txt','md','csv','json','xml','js','py','html','css','yaml','yml','toml','sh','bat','log','ini','cfg','conf','env','ts','jsx','tsx','java','go','rs','rb','php','sql','r','m','swift','kt','gradle'];
+      if (!textExts.includes(ext)) {
+        showToast(`不支持的文件类型: ${file.name}`, 'error');
+        continue;
+      }
+    }
+
+    try {
+      const content = await readFileAsContent(file);
+      pendingFiles.push(content);
+    } catch (err) {
+      showToast(`${file.name}: ${err.message}`, 'error');
+    }
+  }
+  renderFilePreviews();
+}
+
+function renderFilePreviews() {
+  const strip = $('filePreviewStrip');
+  if (pendingFiles.length === 0) {
+    strip.innerHTML = '';
+    return;
+  }
+  strip.innerHTML = pendingFiles.map((f, i) => `
+    <div class="file-preview-card">
+      <span class="fp-icon">${getFileIcon(f.name)}</span>
+      <span class="fp-info">
+        <span class="fp-name">${escapeHtml(f.name)}</span>
+        <span class="fp-size">${formatFileSize(f.size)}</span>
+      </span>
+      <span class="fp-remove" onclick="removePendingFile(${i})" title="移除">×</span>
+    </div>
+  `).join('');
+}
+
+function removePendingFile(index) {
+  pendingFiles.splice(index, 1);
+  renderFilePreviews();
+}
+
+function clearPendingFiles() {
+  pendingFiles = [];
+  renderFilePreviews();
+}
 
 // ==================== CRUD ====================
 function loadConversations() {
@@ -45,7 +121,8 @@ function getConvTitle(conv) {
   if (conv.title && conv.title !== '新对话') return conv.title;
   const firstUser = conv.messages.find(m => m.role === 'user');
   if (firstUser) {
-    const t = firstUser.content.trim();
+    const t = extractTextParts(firstUser.content);
+    if (!t) return '新对话';
     return t.length > 40 ? t.slice(0, 40) + '…' : t;
   }
   return '新对话';
@@ -55,7 +132,7 @@ function getConvPreview(conv) {
   if (conv.messages.length === 0) return '空对话';
   const last = conv.messages[conv.messages.length - 1];
   const prefix = last.role === 'user' ? 'Q: ' : 'A: ';
-  const t = last.content.trim();
+  const t = extractTextParts(last.content);
   return prefix + (t.length > 30 ? t.slice(0, 30) + '…' : t);
 }
 
@@ -218,9 +295,11 @@ function saveCurrentConversation() {
   if (conv.title === '新对话') {
     const firstUser = currentConvMessages.find(m => m.role === 'user');
     if (firstUser) {
-      const t = firstUser.content.trim();
-      conv.title = t.length > 15 ? t.slice(0, 15) + '…' : t;
-      $('convTitle').textContent = conv.title;
+      const t = extractTextParts(firstUser.content);
+      if (t) {
+        conv.title = t.length > 15 ? t.slice(0, 15) + '…' : t;
+        $('convTitle').textContent = conv.title;
+      }
     }
   }
 
@@ -245,10 +324,11 @@ async function generateConversationTitle() {
   const model = $('model')?.value.trim();
   if (!apiUrl || !model) return;
 
+  const userText = extractTextParts(firstUser.content);
+  const assistantText = firstAssistant ? extractTextParts(firstAssistant.content) : '';
   const promptText = `为以下对话生成一个简短的中文标题（不超过15个字），直接返回标题文本，不要引号，不要多余内容。
 
-用户：${firstUser.content.slice(0, 100)}${firstUser.content.length > 100 ? '…' : ''}${firstAssistant ? '\n\nAI：' + firstAssistant.content.slice(0, 200) + (firstAssistant.content.length > 200 ? '…' : '') : ''}`;
-
+用户：${userText.slice(0, 100)}${userText.length > 100 ? '…' : ''}${assistantText ? '\n\nAI：' + assistantText.slice(0, 200) + (assistantText.length > 200 ? '…' : '') : ''}`;
   try {
     const headers = {
       'Content-Type': 'application/json',
@@ -310,6 +390,55 @@ function renderMessages() {
   container.scrollTop = container.scrollHeight;
 }
 
+/**
+ * Render message content (string or array) to HTML.
+ * String: regular markdown rendering via formatContent.
+ * Array: text parts (markdown) + file attachments + images.
+ */
+function renderMessageContent(content, msgId) {
+  if (typeof content === 'string') return formatContent(content);
+
+  let html = '';
+  for (let i = 0; i < content.length; i++) {
+    const part = content[i];
+    if (part.type === 'text' && part.text.trim()) {
+      html += formatContent(part.text);
+    } else if (part.type === 'file') {
+      const efName = escapeHtml(part.file.name);
+      const efSize = formatFileSize(part.file.size);
+      const icon = getFileIcon(part.file.name);
+      const fcId = `fc-${msgId}-${i}`;
+      // Show first 5000 chars, collapse the rest
+      const fileContent = part.file.content || '';
+      const isLong = fileContent.length > 5000;
+      const displayContent = escapeHtml(isLong ? fileContent.slice(0, 5000) + '\n… (内容已截断，完整内容已发送给 AI)' : fileContent);
+      html += `<div class="msg-file">
+          <span class="msg-file-icon">${icon}</span>
+          <span class="msg-file-info">
+            <span class="msg-file-name">${efName}</span>
+            <span class="msg-file-size">${efSize}</span>
+          </span>
+          <button class="msg-file-toggle" onclick="toggleFileContent('${fcId}')">展开 ▾</button>
+        </div>
+        <div class="msg-file-content collapsed" id="${fcId}">${displayContent}</div>`;
+    } else if (part.type === 'image_url') {
+      html += `<div class="msg-image"><img src="${escapeHtml(part.image_url.url)}" alt="图片" loading="lazy"></div>`;
+    }
+  }
+  return html;
+}
+
+function toggleFileContent(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const btn = el.previousElementSibling?.querySelector('.msg-file-toggle');
+  if (el.classList.toggle('collapsed')) {
+    if (btn) btn.textContent = '展开 ▾';
+  } else {
+    if (btn) btn.textContent = '收起 ▴';
+  }
+}
+
 function addMessageDOM(role, content, isPlaceholder = false) {
   const id = `msg-${++msgCounter}`;
   const div = document.createElement('div');
@@ -349,15 +478,17 @@ function addMessageDOM(role, content, isPlaceholder = false) {
     }
   } else {
     // user or assistant
-    const formatted = isPlaceholder ? '' : formatContent(content);
-    const needsCollapse = !isPlaceholder && role === 'user' && content.length > COLLAPSE_LENGTH;
+    const isArrayContent = Array.isArray(content);
+    const textForLength = isArrayContent ? extractTextParts(content) : content;
+    const formatted = isPlaceholder ? '' : renderMessageContent(content, id);
+    const needsCollapse = !isPlaceholder && role === 'user' && textForLength.length > COLLAPSE_LENGTH;
 
     let bubbleInner;
     if (isPlaceholder) {
       bubbleInner = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-    } else if (needsCollapse) {
+    } else if (needsCollapse && !isArrayContent) {
       msgFullContent[id] = formatted;
-      const preview = content.slice(0, COLLAPSE_LENGTH) + '…';
+      const preview = textForLength.slice(0, COLLAPSE_LENGTH) + '…';
       bubbleInner = `<div class="msg-body collapsed">${escapeHtml(preview)}</div>
         <button class="collapse-toggle" onclick="toggleMessageCollapse('${id}')">展开 ▾</button>`;
     } else {
@@ -376,9 +507,9 @@ function addMessageDOM(role, content, isPlaceholder = false) {
         </span>`}
       </div>`;
 
-    if (needsCollapse) {
+    if (needsCollapse && !isArrayContent) {
       const body = div.querySelector('.msg-body');
-      body.dataset.truncated = content.slice(0, COLLAPSE_LENGTH) + '…';
+      body.dataset.truncated = textForLength.slice(0, COLLAPSE_LENGTH) + '…';
     }
   }
 
@@ -434,6 +565,7 @@ function regenerateMessage() {
   renderMessages();
 
   window._skipUserPush = true;
+  // Pass the content directly — sendMessage already handles both string and array
   sendMessage(currentConvMessages[lastUserIdx].content);
 }
 
@@ -444,7 +576,7 @@ function updateMessageContent(id, content) {
   if (!bubble) return;
   const ts = bubble.querySelector('.timestamp');
   const actions = bubble.querySelector('.msg-actions');
-  bubble.innerHTML = formatContent(content);
+  bubble.innerHTML = renderMessageContent(content, id);
   if (ts) bubble.appendChild(ts);
   if (actions) bubble.appendChild(actions);
   $('messageContainer').scrollTop = $('messageContainer').scrollHeight;

@@ -11,8 +11,57 @@ async function sendMessage(text) {
   const maxTokens = $('maxTokens');
   const historyLimit = $('historyLimit');
 
-  if (text === undefined) text = userInput.value.trim();
-  if (!text) return;
+  // Determine user content: could be a string (plain text), array (from regenerate with files), or undefined (read from textarea)
+  let userContent;
+  let isPrebuilt = false;
+
+  if (typeof text === 'string') {
+    // Plain text passed (from regenerateMessage or manual send)
+    const trimmed = text;
+    const hasFiles = pendingFiles.length > 0;
+    if (!trimmed && !hasFiles) return;
+    if (isStreaming) return;
+
+    if (hasFiles) {
+      userContent = [];
+      if (trimmed) userContent.push({ type: 'text', text: trimmed });
+      for (const f of pendingFiles) {
+        if (f._type === 'image') {
+          userContent.push({ type: 'image_url', image_url: { url: f.content } });
+        } else {
+          userContent.push({ type: 'file', file: { name: f.name, content: f.content, size: f.size, mime: f.mime } });
+        }
+      }
+    } else {
+      userContent = trimmed;
+    }
+  } else if (Array.isArray(text)) {
+    // Pre-built content array (from regenerateMessage with files)
+    userContent = text;
+    isPrebuilt = true;
+  } else {
+    // text === undefined — read from textarea + pendingFiles
+    const trimmed = userInput.value.trim();
+    const hasFiles = pendingFiles.length > 0;
+    if (!trimmed && !hasFiles) return;
+    if (isStreaming) return;
+
+    if (hasFiles) {
+      userContent = [];
+      if (trimmed) userContent.push({ type: 'text', text: trimmed });
+      for (const f of pendingFiles) {
+        if (f._type === 'image') {
+          userContent.push({ type: 'image_url', image_url: { url: f.content } });
+        } else {
+          userContent.push({ type: 'file', file: { name: f.name, content: f.content, size: f.size, mime: f.mime } });
+        }
+      }
+    } else {
+      userContent = trimmed;
+    }
+  }
+
+  if (typeof userContent === 'string' && !userContent) return;
   if (isStreaming) return;
 
   const url = apiUrl.value.trim().replace(/\/+$/, '');
@@ -39,13 +88,16 @@ async function sendMessage(text) {
 
   const _pushedUser = !window._skipUserPush;
   if (_pushedUser) {
-    currentConvMessages.push({ role: 'user', content: text });
-    addMessageDOM('user', text);
+    currentConvMessages.push({ role: 'user', content: userContent });
+    addMessageDOM('user', userContent);
   }
   window._skipUserPush = false;
   $('emptyState').classList.add('hidden');
   userInput.value = '';
   autoResize(userInput);
+
+  // Clear pending files if we consumed them
+  if (!isPrebuilt) clearPendingFiles();
 
   const msgId = addMessageDOM('assistant', '', true);
 
@@ -54,8 +106,8 @@ async function sendMessage(text) {
   const msgsForApi = [];
   if (sys) msgsForApi.push({ role: 'system', content: sys });
   const slice = historyLimitVal > 0 ? currentConvMessages.slice(-historyLimitVal * 2) : [];
-  for (const m of slice) msgsForApi.push({ role: m.role, content: m.content });
-  msgsForApi.push({ role: 'user', content: text });
+  for (const m of slice) msgsForApi.push({ role: m.role, content: flattenContentForApi(m.content) });
+  msgsForApi.push({ role: 'user', content: flattenContentForApi(userContent) });
 
   const body = {
     model: mdl,
@@ -279,6 +331,13 @@ async function testConnection() {
 function enableChat(on) {
   $('userInput').disabled = !on;
   $('sendBtn').disabled = !on;
+  const uploadLabel = $('uploadLabel');
+  if (uploadLabel) {
+    const inp = uploadLabel.querySelector('input[type="file"]');
+    if (inp) inp.disabled = !on;
+    uploadLabel.style.opacity = on ? '1' : '0.4';
+    uploadLabel.style.pointerEvents = on ? 'auto' : 'none';
+  }
   if (on) $('userInput').focus();
 }
 

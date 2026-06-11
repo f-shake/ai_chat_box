@@ -29,6 +29,168 @@ function escapeHtml(t) {
 
 function getNow() { return new Date().toISOString(); }
 
+// ==================== File & Image Utilities ====================
+
+const FILE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const IMAGE_MAX_DIMENSION = 2048;
+const IMAGE_QUALITY = 0.8;
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + 'KB';
+  return (bytes / 1048576).toFixed(1) + 'MB';
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  const icons = {
+    txt: '📝', md: '📝', csv: '📊', json: '📊', xml: '📊', yaml: '📊', yml: '📊', toml: '📊',
+    docx: '📄', doc: '📄',
+    js: '💻', py: '💻', html: '💻', css: '💻', ts: '💻', jsx: '💻', tsx: '💻', java: '💻', go: '💻', rs: '💻',
+    sh: '💻', bat: '💻', ps1: '💻',
+    pdf: '📕',
+    zip: '🗜', rar: '🗜', '7z': '🗜',
+    jpg: '🖼', jpeg: '🖼', png: '🖼', gif: '🖼', webp: '🖼', svg: '🖼',
+  };
+  return icons[ext] || '📎';
+}
+
+function getFileCategory(file) {
+  const mime = file.type;
+  if (mime.startsWith('image/')) return 'image';
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'docx' || mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+  return 'text';
+}
+
+function readAsText(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('文件读取失败'));
+    r.readAsText(file, 'UTF-8');
+  });
+}
+
+function readAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('文件读取失败'));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+function readAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('图片读取失败'));
+    r.readAsDataURL(file);
+  });
+}
+
+async function compressImage(dataUrl) {
+  // Skip if it's a small GIF (likely animated)
+  const rawSize = Math.round(dataUrl.length * 3 / 4);
+  if (rawSize < 100 * 1024) return dataUrl;
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > IMAGE_MAX_DIMENSION || height > IMAGE_MAX_DIMENSION) {
+        const scale = IMAGE_MAX_DIMENSION / Math.max(width, height);
+        width = Math.floor(width * scale);
+        height = Math.floor(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => {
+        if (blob) {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.readAsDataURL(blob);
+        } else {
+          resolve(dataUrl);
+        }
+      }, 'image/jpeg', IMAGE_QUALITY);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function readFileAsContent(file) {
+  const category = getFileCategory(file);
+  let content, mime = file.type;
+
+  // Validate size for non-image files
+  if (category !== 'image' && file.size > FILE_MAX_SIZE) {
+    throw new Error(`文件过大 (${formatFileSize(file.size)})，最大支持 ${formatFileSize(FILE_MAX_SIZE)}`);
+  }
+
+  if (category === 'image') {
+    const dataUrl = await readAsDataURL(file);
+    content = await compressImage(dataUrl);
+  } else if (category === 'docx') {
+    if (typeof mammoth === 'undefined') throw new Error('mammoth.js 未加载，无法解析 .docx 文件');
+    const buf = await readAsArrayBuffer(file);
+    const result = await mammoth.extractRawText({ arrayBuffer: buf });
+    content = result.value || '';
+    mime = 'text/plain';
+  } else {
+    content = await readAsText(file);
+    mime = mime || 'text/plain';
+  }
+
+  return { name: file.name, size: file.size, mime, content, _type: category };
+}
+
+/**
+ * Convert stored message content (string or array) to API-ready format.
+ * File parts are merged into the text part; image_url parts stay as-is.
+ */
+function flattenContentForApi(content) {
+  if (typeof content === 'string') return content;
+
+  const textParts = [];
+  const imageParts = [];
+
+  for (const part of content) {
+    if (part.type === 'text') {
+      textParts.push(part.text);
+    } else if (part.type === 'file') {
+      textParts.push(`\n\n--- ${part.file.name} ---\n${part.file.content}`);
+    } else if (part.type === 'image_url') {
+      imageParts.push(part);
+    }
+  }
+
+  if (imageParts.length === 0) {
+    return textParts.join('').trim() || ' ';
+  }
+
+  // Vision API format: text + images
+  const result = [];
+  const combinedText = textParts.join('').trim();
+  if (combinedText) result.push({ type: 'text', text: combinedText });
+  result.push(...imageParts);
+  return result;
+}
+
+/** Extract plain text from content (string or array) — for titles, previews, copy */
+function extractTextParts(content) {
+  if (typeof content === 'string') return content;
+  return content
+    .filter(p => p.type === 'text')
+    .map(p => p.text)
+    .join(' ')
+    .trim();
+}
+
 // ==================== Collapse support ====================
 const COLLAPSE_LENGTH = 200;
 let msgFullContent = {};  // msgId -> full formatted HTML for collapsible messages
