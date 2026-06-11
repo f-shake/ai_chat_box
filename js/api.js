@@ -18,7 +18,7 @@ async function sendMessage(text) {
   const url = apiUrl.value.trim().replace(/\/+$/, '');
   const key = apiKey.value.trim();
   const mdl = model.value.trim();
-  if (!url || !key || !mdl) {
+  if (!url || !mdl) {
     showToast('请先完成 API 配置并测试连接', 'error');
     return;
   }
@@ -85,12 +85,13 @@ async function sendMessage(text) {
   userInput.disabled = true;
 
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (key) headers['Authorization'] = `Bearer ${key}`;
     const resp = await fetch(`${url}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`,
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -192,19 +193,57 @@ function stopStream() {
 }
 
 // ==================== Test connection ====================
+
+/**
+ * Try to reach the API. First attempts GET /models (OpenAI standard),
+ * then falls back to POST /chat/completions (compatible with many local servers).
+ * Returns { success, text } where text is a display label for the status bar.
+ */
+async function tryTestConnection(url, key, modelHint) {
+  // Only include auth header if key is provided
+  function authHeaders() {
+    const h = {};
+    if (key) h['Authorization'] = `Bearer ${key}`;
+    return h;
+  }
+
+  // GET /models — standard OpenAI endpoint
+  try {
+    console.log('[conn] testing GET /models …');
+    // Use cache-busting to avoid 304 (Not Modified) on repeat tests
+    const resp = await fetch(`${url}/models?_=${Date.now()}`, {
+      headers: authHeaders(),
+    });
+    if (resp.ok || resp.status === 304) {
+      if (resp.status === 304) {
+        // 304 means the server is reachable and endpoint exists (browser cache)
+        console.log('[conn] /models 304 (server reachable)');
+        return { success: true, text: '已连接（服务器可达）', models: [] };
+      }
+      const data = await resp.json();
+      const models = data.data || [];
+      const count = models.length || '?';
+      console.log('[conn] /models OK');
+      return { success: true, text: `已连接（${count} 个模型）`, models };
+    }
+    const body = await resp.text().catch(() => '');
+    return { success: false, text: `HTTP ${resp.status}${body ? ': ' + body.slice(0, 200) : ''}` };
+  } catch (e) {
+    console.log('[conn] /models error', e.message);
+    return { success: false, text: e.message || '无法连接到服务' };
+  }
+}
+
 async function testConnection() {
   const apiUrl = $('apiUrl');
   const apiKey = $('apiKey');
   const statusDot = $('statusDot');
   const statusText = $('statusText');
   const testBtn = $('testBtn');
-  const userInput = $('userInput');
-  const sendBtn = $('sendBtn');
 
   const url = apiUrl.value.trim().replace(/\/+$/, '');
   const key = apiKey.value.trim();
   if (!url) { showToast('请输入 API 地址', 'error'); return; }
-  if (!key) { showToast('请输入 API Key', 'error'); return; }
   if (!/^https?:\/\//.test(url)) { showToast('API 地址格式不正确', 'error'); return; }
 
   testBtn.disabled = true;
@@ -212,28 +251,29 @@ async function testConnection() {
   statusDot.className = 'status-dot checking';
   statusText.textContent = '连接测试中…';
 
-  try {
-    const resp = await fetch(`${url}/models`, {
-      headers: { 'Authorization': `Bearer ${key}` },
-    });
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => '');
-      throw new Error(`HTTP ${resp.status}${body ? ': ' + body.slice(0, 200) : ''}`);
-    }
-    const data = await resp.json();
+  const mdl = $('model').value.trim();
+  const result = await tryTestConnection(url, key, mdl);
+
+  if (result.success) {
     statusDot.className = 'status-dot online';
-    statusText.textContent = `已连接（${data.data?.length ?? '?'} 个模型）`;
+    statusText.textContent = result.text;
     showToast('连接成功！', 'success');
     enableChat(true);
-  } catch (err) {
+    if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
+      updateApiConfigStatus(activeApiConfigId, 'online');
+    }
+  } else {
     statusDot.className = 'status-dot offline';
     statusText.textContent = '连接失败';
-    showToast('连接失败: ' + err.message, 'error');
+    showToast('连接失败: ' + result.text, 'error');
     enableChat(false);
-  } finally {
-    testBtn.disabled = false;
-    testBtn.textContent = '测试连接';
+    if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
+      updateApiConfigStatus(activeApiConfigId, 'offline', result.text);
+    }
   }
+
+  testBtn.disabled = false;
+  testBtn.textContent = '测试连接';
 }
 
 function enableChat(on) {
@@ -245,7 +285,7 @@ function enableChat(on) {
 async function autoTestConnection() {
   const apiUrl = $('apiUrl').value.trim().replace(/\/+$/, '');
   const apiKey = $('apiKey').value.trim();
-  if (!apiUrl || !apiKey) return;
+  if (!apiUrl) return;
 
   const statusDot = $('statusDot');
   const statusText = $('statusText');
@@ -253,19 +293,23 @@ async function autoTestConnection() {
   statusDot.className = 'status-dot checking';
   statusText.textContent = '自动检测中…';
 
-  try {
-    const resp = await fetch(`${apiUrl}/models`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
+  const mdl = $('model').value.trim();
+  const result = await tryTestConnection(apiUrl, apiKey, mdl);
+
+  if (result.success) {
     statusDot.className = 'status-dot online';
-    statusText.textContent = `已连接（${data.data?.length ?? '?'} 个模型）`;
+    statusText.textContent = result.text;
     enableChat(true);
-  } catch (_) {
+    if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
+      updateApiConfigStatus(activeApiConfigId, 'online');
+    }
+  } else {
     statusDot.className = 'status-dot offline';
     statusText.textContent = '自动连接失败，请检查配置';
     enableChat(false);
+    if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
+      updateApiConfigStatus(activeApiConfigId, 'offline', result.text);
+    }
   }
 }
 

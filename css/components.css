@@ -479,6 +479,170 @@
 .group-mgr-item .gm-actions .gm-delete:hover { border-color: #ef4444; color: #ef4444; }
 .group-mgr-empty { text-align: center; color: #bbb; font-size: 12px; padding: 20px; }
 
+/* ===== API Config Management ===== */
+.api-config-header {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.api-config-header .btn-primary { flex: 1; }
+
+.api-config-search {
+  margin-bottom: 12px;
+}
+.api-config-search input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+  transition: border-color .2s;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+.api-config-search input:focus {
+  border-color: #4a90d9;
+  background: #fff;
+}
+
+.api-config-card.offline {
+  opacity: 0.65;
+  background: #f5f5f5;
+}
+.api-config-card.offline:hover {
+  border-color: #d0d0d0;
+  box-shadow: none;
+}
+
+.api-config-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0 -18px;
+  padding: 0 18px;
+}
+.api-config-loading,
+.api-config-empty {
+  text-align: center;
+  color: #bbb;
+  font-size: 12px;
+  padding: 30px 10px;
+  line-height: 1.6;
+}
+
+.api-config-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+  background: #fafbfc;
+}
+.api-config-card:hover {
+  border-color: #c8d0e0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.api-config-card.active {
+  border-color: #4a90d9;
+  background: #f0f6ff;
+  box-shadow: 0 0 0 1px rgba(74,144,217,.15);
+}
+
+.api-config-indicator {
+  font-size: 10px;
+  color: #bbb;
+  padding-top: 2px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.api-config-card.active .api-config-indicator {
+  color: #4a90d9;
+}
+
+.api-config-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.api-config-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.api-config-badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #4a90d9;
+  color: #fff;
+  line-height: 1.4;
+}
+
+.api-config-url {
+  font-size: 11px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.api-config-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.api-config-model {
+  font-size: 11px;
+  color: #4a90d9;
+  background: #eef4ff;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.api-config-key-hint {
+  font-size: 10px;
+  color: #aaa;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.api-config-actions {
+  display: flex;
+  gap: 4px;
+}
+.api-config-actions button {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  cursor: pointer;
+  color: #555;
+  transition: all .2s;
+  line-height: 1.6;
+}
+.api-config-actions .btn-apply-sm {
+  background: #4a90d9;
+  color: #fff;
+  border-color: #4a90d9;
+}
+.api-config-actions .btn-apply-sm:hover { background: #357abd; }
+.api-config-actions .btn-edit-sm:hover { border-color: #4a90d9; color: #4a90d9; }
+.api-config-actions .btn-delete-sm:hover { border-color: #ef4444; color: #ef4444; }
+.api-config-actions button:disabled { cursor: not-allowed; }
+
 /* ===== Toast ===== */
 .toast {
   position: fixed;

@@ -7,6 +7,8 @@ const ACTIVE_KEY = 'ai_chat_active_conv';
 const PROMPTS_KEY = 'ai_chat_prompts';
 const GROUPS_KEY = 'ai_chat_groups';
 const HIDDEN_PROMPTS_KEY = 'ai_chat_hidden_prompts';
+const API_CONFIGS_KEY = 'ai_chat_api_configs';
+const ACTIVE_API_CONFIG_KEY = 'ai_chat_active_api_config';
 
 function showToast(msg, type = 'info', duration = 3000) {
   const t = $('toast');

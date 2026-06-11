@@ -271,6 +271,7 @@
 .input-area textarea::placeholder {
   color: #b0b8c8;
   font-weight: 400;
+  white-space: nowrap;
 }
 .input-area textarea:focus {
   border-color: #4a90d9;

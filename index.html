@@ -78,48 +78,32 @@
   <!-- Settings Sidebar (right) -->
   <aside class="sidebar">
     <div class="side-tabs">
-      <button class="active" onclick="switchSideTab('api')" id="tabApi">API</button>
+      <button class="active" onclick="switchSideTab('api')" id="tabApi">服务</button>
       <button onclick="switchSideTab('params')" id="tabParams">参数</button>
       <button onclick="switchSideTab('prompts')" id="tabPrompts">智能体</button>
     </div>
 
     <div class="side-panel" id="panelApi">
-      <div class="form-group">
-        <label for="apiUrl">API 地址</label>
-        <input type="url" id="apiUrl" placeholder="https://api.deepseek.com/v1"
-               value="https://api.deepseek.com/v1">
-        <span class="hint">支持任意 OpenAI 兼容端点</span>
+      <!-- Hidden fields for backward compatibility — synced from active API config -->
+      <input type="hidden" id="apiUrl">
+      <input type="hidden" id="apiKey">
+      <input type="hidden" id="model">
+
+      <!-- API Config Management -->
+      <div class="api-config-header">
+        <button class="btn-primary btn-sm" onclick="showApiConfigDialog()">+ 新增服务</button>
+      </div>
+      <div class="api-config-search">
+        <input type="text" id="apiConfigSearch" placeholder="搜索服务…" oninput="renderApiConfigs()">
+      </div>
+      <div class="api-config-list" id="apiConfigList">
+        <div class="api-config-loading">加载中…</div>
       </div>
 
-      <div class="form-group">
-        <label for="apiKey">API Key</label>
-        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
-      </div>
-
-      <div class="form-group">
-        <label for="model">模型名称</label>
-        <input type="text" id="model" placeholder="deepseek-chat" value="deepseek-chat">
-        <div class="preset-models">
-          <button onclick="setModel('deepseek-chat')">DeepSeek</button>
-          <button onclick="setModel('deepseek-reasoner')">DeepSeek-R1</button>
-          <button onclick="setModel('gpt-4o')">GPT-4o</button>
-          <button onclick="setModel('gpt-4o-mini')">GPT-4o-mini</button>
-          <button onclick="setModel('claude-sonnet-4-6')">Claude</button>
-        </div>
-      </div>
-
-      <button class="btn-primary" onclick="testConnection()" id="testBtn" style="margin-top:4px;width:100%">测试连接</button>
-
-      <div class="connection-status">
+      <div class="connection-status" style="margin-top:auto;padding-top:10px;border-top:1px solid #eee">
         <span class="status-dot offline" id="statusDot"></span>
         <span id="statusText">未连接</span>
-      </div>
-
-      <hr style="border:none;border-top:1px solid #eee;margin:2px 0">
-
-      <div style="display:flex;gap:6px">
-        <button class="btn-success" onclick="saveConfig()" style="flex:1">保存配置</button>
-        <button class="btn-outline" onclick="resetConfig()">重置</button>
+        <button class="btn-outline btn-sm" id="testBtn" onclick="testConnection()" style="margin-left:auto">测试连接</button>
       </div>
     </div>
 
@@ -162,6 +146,12 @@
         <label for="historyLimit">携带历史轮数</label>
         <input type="number" id="historyLimit" placeholder="20" value="20" min="0" max="100">
         <span class="hint">设为 0 则不携带上下文</span>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #eee;margin:4px 0">
+      <div style="display:flex;gap:6px">
+        <button class="btn-success" onclick="saveConfig()" style="flex:1">保存参数</button>
+        <button class="btn-outline" onclick="resetConfig()">重置</button>
       </div>
     </div>
 

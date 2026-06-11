@@ -243,19 +243,20 @@ async function generateConversationTitle() {
   const apiUrl = $('apiUrl')?.value.trim().replace(/\/+$/, '');
   const apiKey = $('apiKey')?.value.trim();
   const model = $('model')?.value.trim();
-  if (!apiUrl || !apiKey || !model) return;
+  if (!apiUrl || !model) return;
 
   const promptText = `为以下对话生成一个简短的中文标题（不超过15个字），直接返回标题文本，不要引号，不要多余内容。
 
 用户：${firstUser.content.slice(0, 100)}${firstUser.content.length > 100 ? '…' : ''}${firstAssistant ? '\n\nAI：' + firstAssistant.content.slice(0, 200) + (firstAssistant.content.length > 200 ? '…' : '') : ''}`;
 
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
     const resp = await fetch(`${apiUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model: model,
         messages: [
