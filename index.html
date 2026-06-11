@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 聊天助手</title>
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/chat.css">
+<script src="js/marked.min.js"></script>
+</head>
+<body>
+
+<header>
+  <button class="mobile-menu-btn" onclick="toggleMobilePanel('history')" title="对话历史" aria-label="对话历史">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+  </button>
+  <h1>AI 聊天</h1>
+  <div class="header-center">
+    <span class="conversation-title" id="convTitle" onclick="renameConversation()">新对话</span>
+  </div>
+  <div class="header-actions">
+    <button class="mobile-settings-btn" onclick="toggleMobilePanel('settings')" title="设置" aria-label="设置">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+    </button>
+    <button onclick="clearMessages()" title="清空当前对话">清空</button>
+    <button onclick="exportChat()" title="导出聊天记录">导出</button>
+  </div>
+</header>
+
+<div class="app-container">
+  <!-- History Sidebar (left) -->
+  <aside class="history-sidebar">
+    <div class="history-header">
+      <h3>对话历史</h3>
+      <div style="display:flex;gap:4px">
+        <button onclick="newConversation()">+ 新建</button>
+        <button class="btn-outline btn-sm" onclick="clearAllConversations()" style="padding:4px 8px;font-size:11px">清空全部</button>
+      </div>
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">暂无对话记录<br>发送消息后自动创建</div>
+    </div>
+    <div class="history-footer">共 <span id="convCount">0</span> 个对话</div>
+  </aside>
+
+  <!-- Chat -->
+  <main class="chat-area">
+    <div class="messages" id="messageContainer">
+      <div class="empty-state" id="emptyState">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="#bbb"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        </div>
+        <h3>开始对话</h3>
+        <p>在右侧配置 API 信息，输入问题并发送。</p>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-options">
+        <label class="input-toggle" title="深度思考：开启后模型会先进行推理再输出答案">
+          <input type="checkbox" id="reasoningToggle" onchange="saveConfigSilent()">
+          <span class="input-toggle-track"></span>
+          <span class="input-toggle-label">深度思考</span>
+        </label>
+      </div>
+      <textarea id="userInput" rows="1" placeholder="输入消息… (Enter 发送, Shift+Enter 换行)" disabled
+                onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+      <button id="sendBtn" onclick="sendMessage()" disabled title="发送 (Enter)">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+      <button id="stopBtn" class="stop-btn hidden" onclick="stopStream()" title="停止生成">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+      </button>
+    </div>
+  </main>
+
+  <!-- Settings Sidebar (right) -->
+  <aside class="sidebar">
+    <div class="side-tabs">
+      <button class="active" onclick="switchSideTab('api')" id="tabApi">API</button>
+      <button onclick="switchSideTab('params')" id="tabParams">参数</button>
+      <button onclick="switchSideTab('prompts')" id="tabPrompts">智能体</button>
+    </div>
+
+    <div class="side-panel" id="panelApi">
+      <div class="form-group">
+        <label for="apiUrl">API 地址</label>
+        <input type="url" id="apiUrl" placeholder="https://api.deepseek.com/v1"
+               value="https://api.deepseek.com/v1">
+        <span class="hint">支持任意 OpenAI 兼容端点</span>
+      </div>
+
+      <div class="form-group">
+        <label for="apiKey">API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="model">模型名称</label>
+        <input type="text" id="model" placeholder="deepseek-chat" value="deepseek-chat">
+        <div class="preset-models">
+          <button onclick="setModel('deepseek-chat')">DeepSeek</button>
+          <button onclick="setModel('deepseek-reasoner')">DeepSeek-R1</button>
+          <button onclick="setModel('gpt-4o')">GPT-4o</button>
+          <button onclick="setModel('gpt-4o-mini')">GPT-4o-mini</button>
+          <button onclick="setModel('claude-sonnet-4-6')">Claude</button>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="testConnection()" id="testBtn" style="margin-top:4px;width:100%">测试连接</button>
+
+      <div class="connection-status">
+        <span class="status-dot offline" id="statusDot"></span>
+        <span id="statusText">未连接</span>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #eee;margin:2px 0">
+
+      <div style="display:flex;gap:6px">
+        <button class="btn-success" onclick="saveConfig()" style="flex:1">保存配置</button>
+        <button class="btn-outline" onclick="resetConfig()">重置</button>
+      </div>
+    </div>
+
+    <div class="side-panel hidden" id="panelParams">
+      <div class="form-group">
+        <label for="systemPrompt">当前系统提示词</label>
+        <textarea id="systemPrompt" rows="3" placeholder="你是一个有用的助手">你是一个有用的助手</textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="temperature">温度: <span id="tempValue">0.7</span></label>
+        <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7"
+               oninput="$('tempValue').textContent=this.value">
+      </div>
+
+      <div class="form-group">
+        <label for="maxTokens">最大 Token <span class="hint">(0=不限制)</span></label>
+        <input type="number" id="maxTokens" placeholder="0" value="0" min="0" max="131072">
+      </div>
+
+      <div class="form-group">
+        <label for="topP">Top-P: <span id="topPValue">1.0</span></label>
+        <input type="range" id="topP" min="0" max="1" step="0.05" value="1"
+               oninput="$('topPValue').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+
+      <div class="form-group">
+        <label for="frequencyPenalty">频率惩罚: <span id="freqPValue">0</span></label>
+        <input type="range" id="frequencyPenalty" min="-2" max="2" step="0.1" value="0"
+               oninput="$('freqPValue').textContent=this.value">
+      </div>
+
+      <div class="form-group">
+        <label for="presencePenalty">存在惩罚: <span id="presPValue">0</span></label>
+        <input type="range" id="presencePenalty" min="-2" max="2" step="0.1" value="0"
+               oninput="$('presPValue').textContent=this.value">
+      </div>
+
+      <div class="form-group">
+        <label for="historyLimit">携带历史轮数</label>
+        <input type="number" id="historyLimit" placeholder="20" value="20" min="0" max="100">
+        <span class="hint">设为 0 则不携带上下文</span>
+      </div>
+    </div>
+
+    <!-- Prompt Management Panel -->
+    <div class="side-panel hidden" id="panelPrompts">
+      <div class="prompts-header">
+        <button class="btn-primary btn-sm" onclick="addPrompt()">+ 新增智能体</button>
+        <button class="btn-outline btn-sm" onclick="showGroupManager()">分组</button>
+        <button class="btn-outline btn-sm" onclick="resetAllPresets()" title="重置所有预设到初始状态">重置</button>
+      </div>
+      <div class="prompts-search">
+        <input type="text" id="promptsSearch" placeholder="搜索智能体…" oninput="renderPrompts()">
+      </div>
+      <div class="prompts-groups" id="promptsGroups">
+        <div class="prompts-loading">加载中…</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Mobile overlay backdrop -->
+<div id="mobileOverlay" class="mobile-overlay" onclick="closeMobilePanels()"></div>
+
+<script src="js/utils.js"></script>
+<script src="js/conversations.js"></script>
+<script src="js/config.js"></script>
+<script src="js/prompts.js"></script>
+<script src="js/api.js"></script>
+<script src="js/init.js"></script>
+
+</body>
+</html>
