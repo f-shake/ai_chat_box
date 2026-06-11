@@ -421,6 +421,70 @@ function switchSideTab(tab) {
   if (tab === 'prompts') renderPrompts();
 }
 
+// ==================== Share config via URL ====================
+
+/** Generate a shareable URL with the current API config as query params */
+function shareConfig() {
+  const cfg = getActiveApiConfig();
+  if (!cfg) { showToast('没有可分享的服务配置', 'error'); return; }
+
+  const params = new URLSearchParams();
+  params.set('url', cfg.apiUrl || '');
+  if (cfg.apiKey) params.set('key', cfg.apiKey);
+  if (cfg.model) params.set('model', cfg.model);
+  if (cfg.name) params.set('name', cfg.name);
+
+  const base = window.location.href.split('?')[0].split('#')[0];
+  const shareUrl = base + '?' + params.toString();
+
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    showToast('分享链接已复制到剪贴板', 'success');
+  }).catch(() => {
+    // Fallback: show in a prompt
+    prompt('复制此链接分享配置：', shareUrl);
+  });
+}
+
+/** Parse shared config from URL query params and apply it */
+function parseSharedConfig() {
+  const params = new URLSearchParams(window.location.search);
+  const apiUrl = params.get('url');
+  if (!apiUrl) return false;
+
+  const apiKey = params.get('key') || '';
+  const model = params.get('model') || '';
+  const name = params.get('name') || '';
+
+  // Check if a config with this URL already exists
+  const existing = apiConfigs.find(c => c.apiUrl === apiUrl);
+  if (existing) {
+    // Update the existing config
+    if (apiKey) existing.apiKey = apiKey;
+    if (model) existing.model = model;
+    if (name) existing.name = name;
+    saveApiConfigs();
+    applyApiConfig(existing.id);
+  } else {
+    // Create a new config
+    const newConfig = {
+      id: 'api_' + genId(),
+      name: name || new URL(apiUrl).hostname || '共享服务',
+      apiUrl,
+      apiKey,
+      model: model || 'deepseek-chat',
+      status: 'unknown',
+      statusError: '',
+    };
+    apiConfigs.push(newConfig);
+    saveApiConfigs();
+    applyApiConfig(newConfig.id);
+  }
+
+  // Clean the URL — remove query params
+  window.history.replaceState({}, '', window.location.pathname);
+  return true;
+}
+
 // ==================== Default config (shared with prompts) ====================
 const defaultConfig = {
   systemPrompt: '你是一个有用的助手',

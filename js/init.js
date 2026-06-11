@@ -9,6 +9,11 @@ loadPrompts();
 loadApiConfigs();
 loadActiveApiConfigId();
 
+// Parse shared config from URL query params (must be after configs loaded)
+if (parseSharedConfig()) {
+  showToast('已应用共享配置，URL 已自动清理', 'success');
+}
+
 // Load config params
 const hasSavedConfig = loadConfigFromStorage();
 
