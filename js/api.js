@@ -330,6 +330,7 @@ async function testConnection() {
     statusDot.className = 'status-dot offline';
     statusText.textContent = '连接失败';
     showToast('连接失败: ' + result.text, 'error');
+    $('userInput').placeholder = '连接失败，请检查服务配置';
     enableChat(false);
     if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
       updateApiConfigStatus(activeApiConfigId, 'offline', result.text);
@@ -377,6 +378,7 @@ async function autoTestConnection() {
     statusDot.className = 'status-dot offline';
     statusText.textContent = '自动连接失败，请检查配置';
     enableChat(false);
+    $('userInput').placeholder = '连接失败，请检查服务配置';
     if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
       updateApiConfigStatus(activeApiConfigId, 'offline', result.text);
     }

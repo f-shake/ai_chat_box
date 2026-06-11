@@ -336,11 +336,12 @@ function showApiConfigDialog(configToEdit) {
       configToEdit.model = model;
       saveApiConfigs();
 
-      // If this is the active config, sync to hidden fields
+      // If this is the active config, sync to hidden fields and test connection
       if (configToEdit.id === activeApiConfigId) {
         $('apiUrl').value = apiUrl;
         $('apiKey').value = apiKey;
         $('model').value = model;
+        autoTestConnection();
       }
 
       showToast('服务已更新', 'success');
@@ -423,26 +424,76 @@ function switchSideTab(tab) {
 
 // ==================== Share config via URL ====================
 
-/** Generate a shareable URL with the current API config as query params */
-function shareConfig() {
+/** Show share dialog with content selection */
+function showShareDialog() {
   const cfg = getActiveApiConfig();
   if (!cfg) { showToast('没有可分享的服务配置', 'error'); return; }
 
-  const params = new URLSearchParams();
-  params.set('url', cfg.apiUrl || '');
-  if (cfg.apiKey) params.set('key', cfg.apiKey);
-  if (cfg.model) params.set('model', cfg.model);
-  if (cfg.name) params.set('name', cfg.name);
+  const overlay = document.createElement('div');
+  overlay.className = 'prompt-dialog-overlay';
+  overlay.innerHTML = `
+    <div class="prompt-dialog" style="width:400px">
+      <h3>分享配置</h3>
+      <p style="font-size:13px;color:var(--text-tertiary);margin:0 0 12px">选择要分享的内容：</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" checked data-key="service">
+          <span>🔗 服务地址和模型名称</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" data-key="key">
+          <span>🔑 服务密钥</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" data-key="prompt">
+          <span>🤖 当前智能体配置</span>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn-cancel" onclick="this.closest('.prompt-dialog-overlay').remove()">取消</button>
+        <button class="btn-confirm" onclick="doShare(this)">生成分享链接</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
 
-  const base = window.location.href.split('?')[0].split('#')[0];
-  const shareUrl = base + '?' + params.toString();
+  window.doShare = function(btn) {
+    const dialog = btn.closest('.prompt-dialog');
+    const checks = dialog.querySelectorAll('input[type="checkbox"]');
+    const sel = {};
+    checks.forEach(c => { sel[c.dataset.key] = c.checked; });
 
-  navigator.clipboard.writeText(shareUrl).then(() => {
-    showToast('分享链接已复制到剪贴板', 'success');
-  }).catch(() => {
-    // Fallback: show in a prompt
-    prompt('复制此链接分享配置：', shareUrl);
-  });
+    if (!sel.service && !sel.key && !sel.prompt) {
+      showToast('请至少选择一项', 'error');
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (sel.service) {
+      params.set('url', cfg.apiUrl || '');
+      if (cfg.model) params.set('model', cfg.model);
+      if (cfg.name) params.set('name', cfg.name);
+    }
+    if (sel.key && cfg.apiKey) {
+      params.set('key', cfg.apiKey);
+    }
+    if (sel.prompt) {
+      const prompt = $('systemPrompt')?.value.trim();
+      if (prompt) params.set('prompt', prompt);
+    }
+
+    const base = window.location.href.split('?')[0].split('#')[0];
+    const shareUrl = base + '?' + params.toString();
+
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast('分享链接已复制到剪贴板', 'success');
+    }).catch(() => {
+      prompt('复制此链接分享配置：', shareUrl);
+    });
+
+    overlay.remove();
+    delete window.doShare;
+  };
 }
 
 /** Parse shared config from URL query params and apply it */
@@ -478,6 +529,12 @@ function parseSharedConfig() {
     apiConfigs.push(newConfig);
     saveApiConfigs();
     applyApiConfig(newConfig.id);
+  }
+
+  // Apply shared system prompt if present
+  const sharedPrompt = params.get('prompt');
+  if (sharedPrompt && $('systemPrompt')) {
+    $('systemPrompt').value = sharedPrompt;
   }
 
   // Clean the URL — remove query params

@@ -21,13 +21,18 @@
     <span class="conversation-title" id="convTitle" onclick="renameConversation()">新对话</span>
   </div>
   <div class="header-actions">
-    <button class="mobile-settings-btn" onclick="toggleMobilePanel('settings')" title="设置" aria-label="设置">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
-    </button>
-    <button onclick="showExportDialog()" title="导出数据">导出</button>
-    <button onclick="showImportDialog()" title="导入数据">导入</button>
-    <button onclick="clearMessages()" title="清空当前对话">清空</button>
+    <div class="header-dropdown">
+      <button class="dropdown-trigger" onclick="toggleDropdown()" title="更多">···</button>
+      <div class="dropdown-menu hidden" id="headerDropdown">
+        <button onclick="showExportDialog();closeDropdown()">导出数据</button>
+        <button onclick="showImportDialog();closeDropdown()">导入数据</button>
+        <button onclick="showShareDialog();closeDropdown()">分享配置</button>
+      </div>
+    </div>
     <button class="theme-toggle" onclick="toggleTheme()" title="切换暗色模式" id="themeBtn">🌙</button>
+    <button class="mobile-settings-btn" onclick="toggleMobilePanel('settings')" title="设置" aria-label="设置">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+    </button>
   </div>
 </header>
 
@@ -76,6 +81,7 @@
         </label>
       </div>
       <div class="file-preview-strip" id="filePreviewStrip"></div>
+      <button class="input-newchat-btn" onclick="newConversation()" title="新建对话">+</button>
       <textarea id="userInput" rows="1" placeholder="输入消息… (Enter 发送, Shift+Enter 换行)" disabled
                 onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
       <button id="sendBtn" onclick="sendMessage()" disabled title="发送 (Enter)">
@@ -88,7 +94,8 @@
   </main>
 
   <!-- Settings Sidebar (right) -->
-  <aside class="sidebar">
+  <button class="sidebar-collapse-btn" onclick="toggleSidebar()" title="折叠侧栏" id="sidebarToggleBtn">◀</button>
+  <aside class="sidebar" id="settingsSidebar">
     <div class="side-tabs">
       <button class="active" onclick="switchSideTab('api')" id="tabApi">服务</button>
       <button onclick="switchSideTab('params')" id="tabParams">参数</button>
@@ -104,7 +111,6 @@
       <!-- API Config Management -->
       <div class="api-config-header">
         <button class="btn-primary btn-sm" onclick="showApiConfigDialog()">+ 新增服务</button>
-        <button class="btn-outline btn-sm" onclick="shareConfig()" title="分享当前服务配置">分享</button>
       </div>
       <div class="api-config-search">
         <input type="text" id="apiConfigSearch" placeholder="搜索服务…" oninput="renderApiConfigs()">
