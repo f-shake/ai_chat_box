@@ -2,6 +2,16 @@
 (async function init() {
   await initDB();
   initTheme();
+
+  // Detect keyboard open/close on mobile (iOS/Android)
+  if (window.visualViewport) {
+    const setAppHeight = () => {
+      document.documentElement.style.setProperty('--app-height', `${window.visualViewport.height}px`);
+    };
+    window.visualViewport.addEventListener('resize', setAppHeight);
+    setAppHeight();
+  }
+
   initSidebar();
 
 loadConversations();
