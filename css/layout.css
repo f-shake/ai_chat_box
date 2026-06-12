@@ -60,6 +60,22 @@
   --radius-full: 9999px;
 }
 
+/* ===== Scrollbar ===== */
+body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+}
+body::-webkit-scrollbar { width: 6px; height: 6px; }
+body::-webkit-scrollbar-track { background: transparent; }
+body::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+body::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* All scrollable containers */
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
 /* ===== Dark Theme ===== */
 [data-theme="dark"] {
   --bg-page: #171717;
