@@ -281,6 +281,7 @@ function renameConversation() {
   if (title === null) return;
   const trimmed = title.trim();
   conv.title = trimmed || '新对话';
+  conv._aiTitle = true; // manual rename, don't regenerate
   conv.updatedAt = getNow();
   saveConversations();
   renderHistory();
@@ -301,6 +302,7 @@ function saveCurrentConversation() {
       const t = extractTextParts(firstUser.content);
       if (t) {
         conv.title = t.length > 15 ? t.slice(0, 15) + '…' : t;
+        conv._aiTitle = false; // mark as auto-generated, eligible for AI upgrade
         $('convTitle').textContent = conv.title;
       }
     }
@@ -316,7 +318,7 @@ async function generateConversationTitle() {
   const conv = findConv(activeConvId);
   if (!conv) return;
   // Only generate for conversations still using auto-title
-  if (!conv.title || conv.title === '新对话') return;
+  if (conv._aiTitle) return;
 
   const firstUser = currentConvMessages.find(m => m.role === 'user');
   const firstAssistant = currentConvMessages.find(m => m.role === 'assistant');
@@ -347,17 +349,19 @@ async function generateConversationTitle() {
           { role: 'user', content: promptText },
         ],
         temperature: 0.3,
-        max_tokens: 30,
+        max_tokens: 256,
         stream: false,
-        extra_body: { chat_template_kwargs: { enable_thinking: false } },
+        extra_body: { thinking: { type: 'disabled' } },
       }),
     });
 
     if (!resp.ok) return;
     const data = await resp.json();
-    const title = data.choices?.[0]?.message?.content?.trim().replace(/^["「『]+|["」』]+$/g, '') || '';
+    const msg = data.choices?.[0]?.message || {};
+    const title = (msg.content || msg.reasoning_content || '').trim().replace(/^["「『]+|["」』]+$/g, '');
     if (title && title.length <= 20 && title !== conv.title) {
       conv.title = title;
+      conv._aiTitle = true; // mark as AI-generated, prevent regeneration
       saveConversations();
       renderHistory();
       $('convTitle').textContent = title;

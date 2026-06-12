@@ -89,7 +89,7 @@ cd ai-chat-box
 |------|------|--------|
 | API 地址 | OpenAI 兼容接口地址 | `https://api.deepseek.com/v1` |
 | API 密钥 | 你的 API Key | — |
-| 模型 | 模型名称（支持预设和自定义） | `deepseek-chat` |
+| 模型 | 模型名称（支持预设和自定义） | `deepseek-v4-flash` |
 | 系统提示词 | 系统级 prompt | 可自定义 |
 | Temperature | 生成温度 (0-2) | `1.0` |
 | Max Tokens | 最大生成长度 | `4096` |

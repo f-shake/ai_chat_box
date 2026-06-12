@@ -23,7 +23,7 @@
   .sidebar.collapsed { width: 280px; overflow-y: auto; min-width: unset; flex: none; }
 }
 .sidebar h2 {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -44,7 +44,7 @@
   padding: 8px 10px;
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
   transition: border-color .2s, box-shadow .2s;
   background: var(--bg-input);

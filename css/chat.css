@@ -67,8 +67,8 @@
 .bubble {
   padding: 10px 16px;
   border-radius: var(--radius-xl);
-  line-height: 1.6;
-  font-size: 14px;
+  line-height: 1.85;
+  font-size: 16px;
   word-break: break-word;
   position: relative;
 }
@@ -88,7 +88,7 @@
 .message.system-msg .bubble {
   background: var(--bg-hover);
   color: var(--text-tertiary);
-  font-size: 13px;
+  font-size: 15px;
   text-align: center;
   border-radius: var(--radius-md);
 }
@@ -100,27 +100,27 @@
   padding: 12px 14px;
   border-radius: var(--radius-md);
   overflow-x: auto;
-  font-size: 13px;
+  font-size: 15px;
   margin: 8px 0;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 .bubble code {
   font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
-  font-size: 13px;
+  font-size: 15px;
 }
-.bubble p { margin: 4px 0; }
+.bubble p { margin: 6px 0; }
 .bubble h1, .bubble h2, .bubble h3 {
   margin: 10px 0 4px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.45;
 }
-.bubble h1 { font-size: 17px; }
-.bubble h2 { font-size: 16px; }
-.bubble h3 { font-size: 15px; }
+.bubble h1 { font-size: 20px; }
+.bubble h2 { font-size: 18px; }
+.bubble h3 { font-size: 17px; }
 .bubble a { color: var(--text-link); text-decoration: underline; }
 .bubble del { color: var(--text-tertiary); }
 .bubble ul, .bubble ol { margin: 4px 0; padding-left: 20px; }
-.bubble li { margin: 2px 0; }
+.bubble li { margin: 4px 0; }
 .bubble blockquote {
   border-left: 3px solid var(--accent);
   margin: 6px 0;
@@ -139,7 +139,7 @@
 .bubble table {
   border-collapse: collapse;
   margin: 6px 0;
-  font-size: 13px;
+  font-size: 15px;
   width: 100%;
 }
 .bubble th, .bubble td {
@@ -291,7 +291,7 @@
   padding: 6px 14px;
   border: 1px solid var(--border-input);
   border-radius: var(--radius-lg);
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   resize: none;
@@ -376,8 +376,8 @@
   padding: 40px;
 }
 .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: .5; }
-.empty-state h3 { font-size: 16px; color: var(--text-secondary); margin-bottom: 6px; }
-.empty-state p { font-size: 13px; max-width: 360px; line-height: 1.6; }
+.empty-state h3 { font-size: 17px; color: var(--text-secondary); margin-bottom: 6px; }
+.empty-state p { font-size: 14px; max-width: 360px; line-height: 1.6; }
 
 /* ===== Loading dots ===== */
 .typing-indicator {
@@ -397,7 +397,7 @@
 @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
 /* ===== Collapse / Expand ===== */
-.msg-body { line-height: 1.6; }
+.msg-body { line-height: 1.85; }
 .msg-body.collapsed {
   max-height: 4.8em;
   overflow: hidden;
@@ -482,13 +482,13 @@
 .reasoning-block[open] .reasoning-summary::before { transform: rotate(90deg); }
 .reasoning-content {
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   padding: 4px 0 8px;
   white-space: pre-wrap;
 }
 .reasoning-streaming {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   padding: 2px 0;
 }

@@ -60,7 +60,7 @@ const DEFAULT_API_CONFIGS = [
     name: 'DeepSeek',
     apiUrl: 'https://api.deepseek.com/v1',
     apiKey: '',
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-flash',
     status: 'unknown',
     statusError: '',
   },
@@ -106,7 +106,7 @@ function migrateFromOldConfig() {
       name: c.apiUrl ? new URL(c.apiUrl).hostname.replace(/^api\./, '').replace(/\.com$/, '') || '默认服务' : '默认服务',
       apiUrl: c.apiUrl || 'https://api.deepseek.com/v1',
       apiKey: c.apiKey || '',
-      model: c.model || 'deepseek-chat',
+      model: c.model || 'deepseek-v4-flash',
       status: 'unknown',
       statusError: '',
     };
@@ -234,7 +234,7 @@ function renderApiConfigCard(config) {
 
 function showApiConfigDialog(configToEdit) {
   const isEdit = !!configToEdit;
-  const cfg = configToEdit || { name: '', apiUrl: 'https://api.deepseek.com/v1', apiKey: '', model: 'deepseek-chat' };
+  const cfg = configToEdit || { name: '', apiUrl: 'https://api.deepseek.com/v1', apiKey: '', model: 'deepseek-v4-flash' };
 
   const overlay = document.createElement('div');
   overlay.className = 'prompt-dialog-overlay';
@@ -256,7 +256,7 @@ function showApiConfigDialog(configToEdit) {
       </div>
       <div class="form-group">
         <label for="dcModel">模型名称</label>
-        <input type="text" id="dcModel" placeholder="deepseek-chat" value="${isEdit ? escapeHtml(cfg.model) : 'deepseek-chat'}">
+        <input type="text" id="dcModel" placeholder="deepseek-v4-flash" value="${isEdit ? escapeHtml(cfg.model) : 'deepseek-v4-flash'}">
         <div class="dlg-model-list" style="margin-top:6px;display:none">
           <select id="dcModelSelect" style="width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px" onchange="document.getElementById('dcModel').value=this.value">
             <option value="">— 从列表选择模型 —</option>
@@ -586,7 +586,7 @@ async function parseSharedConfig() {
       name: name || new URL(apiUrl).hostname || '共享服务',
       apiUrl,
       apiKey,
-      model: model || 'deepseek-chat',
+      model: model || 'deepseek-v4-flash',
       status: 'unknown',
       statusError: '',
     };

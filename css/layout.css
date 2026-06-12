@@ -159,7 +159,7 @@ header {
   z-index: 10;
 }
 header h1 {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   white-space: nowrap;
   display: flex;
@@ -176,7 +176,7 @@ header h1 {
   justify-content: center;
 }
 .header-center .conversation-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-secondary);
   padding: 4px 14px;
@@ -368,7 +368,7 @@ header h1 {
 }
 .history-item .item-content { flex: 1; min-width: 0; }
 .history-item .item-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
   overflow: hidden;
