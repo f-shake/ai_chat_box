@@ -322,6 +322,7 @@ async function testConnection() {
     statusDot.className = 'status-dot online';
     statusText.textContent = result.text;
     showToast('连接成功！', 'success');
+    $('userInput').placeholder = '输入消息… (Enter 发送, Shift+Enter 换行)';
     enableChat(true);
     if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
       updateApiConfigStatus(activeApiConfigId, 'online');
@@ -370,6 +371,7 @@ async function autoTestConnection() {
   if (result.success) {
     statusDot.className = 'status-dot online';
     statusText.textContent = result.text;
+    $('userInput').placeholder = '输入消息… (Enter 发送, Shift+Enter 换行)';
     enableChat(true);
     if (typeof updateApiConfigStatus === 'function' && activeApiConfigId) {
       updateApiConfigStatus(activeApiConfigId, 'online');

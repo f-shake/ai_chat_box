@@ -422,6 +422,41 @@ function switchSideTab(tab) {
   if (tab === 'prompts') renderPrompts();
 }
 
+// ==================== Encrypted share helpers ====================
+const SHARE_SECRET = 'AI_CHAT_BOX_2026AI_CHAT_BOX_2026';
+
+async function _deriveKey(secret) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode('ai_chat_salt'), iterations: 10000, hash: 'SHA-256' },
+    key,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptShareData(obj) {
+  const key = await _deriveKey(SHARE_SECRET);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(JSON.stringify(obj));
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+  const combined = new Uint8Array(iv.length + cipher.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(cipher), iv.length);
+  return btoa(String.fromCharCode(...combined)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function decryptShareData(encoded) {
+  const key = await _deriveKey(SHARE_SECRET);
+  const raw = Uint8Array.from(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+  const iv = raw.slice(0, 12);
+  const cipher = raw.slice(12);
+  const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+  return JSON.parse(new TextDecoder().decode(dec));
+}
+
 // ==================== Share config via URL ====================
 
 /** Show share dialog with content selection */
@@ -457,7 +492,7 @@ function showShareDialog() {
   `;
   document.body.appendChild(overlay);
 
-  window.doShare = function(btn) {
+  window.doShare = async function(btn) {
     const dialog = btn.closest('.prompt-dialog');
     const checks = dialog.querySelectorAll('input[type="checkbox"]');
     const sel = {};
@@ -468,25 +503,38 @@ function showShareDialog() {
       return;
     }
 
-    const params = new URLSearchParams();
+    // Build data object (will be encrypted)
+    const data = {};
     if (sel.service) {
-      params.set('url', cfg.apiUrl || '');
-      if (cfg.model) params.set('model', cfg.model);
-      if (cfg.name) params.set('name', cfg.name);
+      data.url = cfg.apiUrl || '';
+      if (cfg.model) data.model = cfg.model;
+      if (cfg.name) data.name = cfg.name;
     }
     if (sel.key && cfg.apiKey) {
-      params.set('key', cfg.apiKey);
+      data.key = cfg.apiKey;
     }
     if (sel.prompt) {
       const prompt = $('systemPrompt')?.value.trim();
-      if (prompt) params.set('prompt', prompt);
+      if (prompt) data.prompt = prompt;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '加密中…';
+    let encoded;
+    try {
+      encoded = await encryptShareData(data);
+    } catch (e) {
+      showToast('加密失败: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = '生成分享链接';
+      return;
     }
 
     const base = window.location.href.split('?')[0].split('#')[0];
-    const shareUrl = base + '?' + params.toString();
+    const shareUrl = base + '?data=' + encoded;
 
     navigator.clipboard.writeText(shareUrl).then(() => {
-      showToast('分享链接已复制到剪贴板', 'success');
+      showToast('加密分享链接已复制到剪贴板', 'success');
     }).catch(() => {
       prompt('复制此链接分享配置：', shareUrl);
     });
@@ -497,14 +545,30 @@ function showShareDialog() {
 }
 
 /** Parse shared config from URL query params and apply it */
-function parseSharedConfig() {
+async function parseSharedConfig() {
   const params = new URLSearchParams(window.location.search);
-  const apiUrl = params.get('url');
-  if (!apiUrl) return false;
+  const encoded = params.get('data');
+  if (!encoded) return false;
 
-  const apiKey = params.get('key') || '';
-  const model = params.get('model') || '';
-  const name = params.get('name') || '';
+  let data;
+  try {
+    data = await decryptShareData(encoded);
+  } catch (e) {
+    showToast('配置数据无效或已损坏，无法解析', 'error');
+    window.history.replaceState({}, '', window.location.pathname);
+    return false;
+  }
+
+  const apiUrl = data.url || '';
+  const apiKey = data.key || '';
+  const model = data.model || '';
+  const name = data.name || '';
+
+  if (!apiUrl) {
+    showToast('分享数据缺少服务地址', 'error');
+    window.history.replaceState({}, '', window.location.pathname);
+    return false;
+  }
 
   // Check if a config with this URL already exists
   const existing = apiConfigs.find(c => c.apiUrl === apiUrl);
@@ -532,9 +596,8 @@ function parseSharedConfig() {
   }
 
   // Apply shared system prompt if present
-  const sharedPrompt = params.get('prompt');
-  if (sharedPrompt && $('systemPrompt')) {
-    $('systemPrompt').value = sharedPrompt;
+  if (data.prompt && $('systemPrompt')) {
+    $('systemPrompt').value = data.prompt;
   }
 
   // Clean the URL — remove query params

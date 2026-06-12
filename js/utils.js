@@ -310,6 +310,8 @@ function initSidebar() {
     sidebar.classList.add('collapsed');
     btn.classList.add('collapsed');
     btn.textContent = '◀';
+  } else {
+    btn.textContent = '▶';
   }
 }
 
