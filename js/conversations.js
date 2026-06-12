@@ -184,6 +184,7 @@ function renderHistory() {
 // ==================== Conversation CRUD ====================
 function newConversation() {
   if (isStreaming) { showToast('请先停止当前生成', 'error'); return; }
+  if (editingMsgIdx >= 0) { showToast('请先完成或取消编辑', 'error'); return; }
 
   saveCurrentConversation();
 
