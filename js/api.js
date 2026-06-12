@@ -92,6 +92,7 @@ async function sendMessage(text) {
     activeConvId = conv.id;
     currentConvMessages = [];
     saveActiveId();
+    saveConversations();
   }
 
   const _pushedUser = !window._skipUserPush;
@@ -100,6 +101,8 @@ async function sendMessage(text) {
     addMessageDOM('user', userContent, false, currentConvMessages.length - 1);
   }
   window._skipUserPush = false;
+  // Persist immediately so user message isn't lost on crash/interrupt
+  saveCurrentConversation();
   $('emptyState').classList.add('hidden');
   userInput.value = '';
   autoResize(userInput);
@@ -150,6 +153,36 @@ async function sendMessage(text) {
   stopBtn.classList.remove('hidden');
   userInput.disabled = true;
 
+  // Track streaming state so beforeunload can save partial content
+  let _chunkCount = 0;
+  let fullContent = '';
+  let fullReasoning = '';
+
+  // Auto-save partial content every 3s so it survives crash/tab-close
+  // Only save when there's actual content (fullContent), not just reasoning
+  const _saveTimer = setInterval(() => {
+    if (fullContent) {
+      const conv = findConv(activeConvId);
+      if (conv) {
+        conv.messages = currentConvMessages;
+        currentConvMessages.push({ role: 'assistant', content: fullContent });
+        saveConversations();
+        currentConvMessages.pop();
+      }
+    }
+  }, 3000);
+
+  // Save partial content when the page is closed/refreshed mid-stream
+  // Only save actual content (fullContent), not just reasoning
+  const _beforeUnloadHandler = () => {
+    if (fullContent) {
+      currentConvMessages.push({ role: 'assistant', content: fullContent });
+      saveConversations();
+      currentConvMessages.pop();
+    }
+  };
+  window.addEventListener('beforeunload', _beforeUnloadHandler);
+
   try {
     const headers = {
       'Content-Type': 'application/json',
@@ -170,8 +203,8 @@ async function sendMessage(text) {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let fullContent = '';
-    let fullReasoning = '';
+    fullContent = '';
+    fullReasoning = '';
     const isReasoningEnabled = reasonEl && reasonEl.checked;
 
     while (true) {
@@ -201,6 +234,7 @@ async function sendMessage(text) {
           }
 
           if (contentDelta || reasoningDelta) {
+            _chunkCount++;
             if (isReasoningEnabled) {
               updateMessageWithReasoning(msgId, fullReasoning, fullContent);
             } else {
@@ -231,23 +265,39 @@ async function sendMessage(text) {
 
   } catch (err) {
     if (err.name === 'AbortError') {
-      const partial = fullContent || getMessageContent(msgId);
-      if (partial) {
-        currentConvMessages.push({ role: 'assistant', content: partial });
+      // Only save if there's actual content, not just reasoning/thinking
+      if (fullContent) {
+        currentConvMessages.push({ role: 'assistant', content: fullContent });
         const convDirty = findConv(activeConvId);
         if (convDirty) convDirty.updatedAt = getNow();
         saveCurrentConversation();
         addMessageActions(msgId);
+      } else {
+        // Only reasoning content or nothing — discard the placeholder message
+        removeMessage(msgId);
       }
       showToast('已停止生成', 'info');
     } else {
+      // Network/API error — save partial content if any, otherwise clean up
+      if (fullContent) {
+        // Update DOM with partial content before adding actions
+        const displayContent = fullContent + '\n\n*——回复被中断，以上为部分内容*';
+        updateMessageContent(msgId, displayContent);
+        currentConvMessages.push({ role: 'assistant', content: displayContent });
+        const convDirty = findConv(activeConvId);
+        if (convDirty) convDirty.updatedAt = getNow();
+        saveCurrentConversation();
+        addMessageActions(msgId);
+      } else {
+        // No actual content — just remove the placeholder, keep user message
+        removeMessage(msgId);
+      }
       showToast('请求失败: ' + err.message, 'error');
-      removeMessage(msgId);
-      if (_pushedUser) currentConvMessages.pop();
     }
   } finally {
+    clearInterval(_saveTimer);
+    window.removeEventListener('beforeunload', _beforeUnloadHandler);
     isStreaming = false;
-    controller = null;
     sendBtn.classList.remove('hidden');
     stopBtn.classList.add('hidden');
     userInput.disabled = false;
