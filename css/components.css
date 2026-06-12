@@ -63,6 +63,21 @@
   min-height: 60px;
   line-height: 1.5;
 }
+/* Fix textarea resize handle white corner in dark mode */
+.form-group textarea::-webkit-resizer {
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+}
+.form-group textarea::-moz-resizer {
+  background: var(--bg-input);
+}
+/* Extra margin for system prompt textarea and Top-P */
+.form-group:has(#systemPrompt) {
+  margin-bottom: 8px;
+}
+.form-group:has(#topP) {
+  margin-top: 6px;
+}
 .form-group .hint {
   font-size: 11px;
   color: var(--text-tertiary);

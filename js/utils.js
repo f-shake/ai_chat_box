@@ -208,7 +208,7 @@ function toggleMessageCollapse(id) {
     btn.textContent = '收起 ▴';
   } else {
     body.classList.add('collapsed');
-    body.textContent = body.dataset.truncated || '…';
+    body.textContent = body.dataset.truncated ?? '';
     btn.textContent = '展开 ▾';
   }
 }

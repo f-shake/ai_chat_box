@@ -134,9 +134,14 @@ async function sendMessage(text) {
   const pp = parseFloat($('presencePenalty').value);
   if (pp !== undefined && pp !== 0) body.presence_penalty = pp;
   const reasonEl = $('reasoningToggle');
-  if (reasonEl && reasonEl.checked) {
-    body.reasoning_effort = 'high';
-    body.thinking = { type: 'enabled' };
+  if (reasonEl) {
+    if (reasonEl.checked) {
+      body.reasoning_effort = 'high';
+      body.thinking = { type: 'enabled' };
+      body.extra_body = { chat_template_kwargs: { enable_thinking: true } };
+    } else {
+      body.extra_body = { chat_template_kwargs: { enable_thinking: false } };
+    }
   }
 
   controller = new AbortController();

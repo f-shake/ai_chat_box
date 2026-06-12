@@ -348,6 +348,7 @@ async function generateConversationTitle() {
         temperature: 0.3,
         max_tokens: 30,
         stream: false,
+        extra_body: { chat_template_kwargs: { enable_thinking: false } },
       }),
     });
 
@@ -463,7 +464,7 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
       msgFullContent[id] = formatted;
       const preview = content.slice(0, COLLAPSE_LENGTH) + '…';
       bubbleInner = `<div class="bubble-label">系统提示词</div>
-        <div class="msg-body collapsed">${escapeHtml(preview)}</div>
+        <div class="msg-body collapsed"></div>
         <button class="collapse-toggle" onclick="toggleMessageCollapse('${id}')">展开 ▾</button>`;
     } else {
       bubbleInner = `<div class="bubble-label">系统提示词</div>
@@ -476,7 +477,7 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
 
     if (needsCollapse) {
       const body = div.querySelector('.msg-body');
-      body.dataset.truncated = content.slice(0, COLLAPSE_LENGTH) + '…';
+      body.dataset.truncated = '';
     }
   } else {
     // user or assistant

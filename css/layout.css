@@ -264,6 +264,12 @@ header h1 {
 .dropdown-trigger {
   letter-spacing: 1px;
   font-weight: 700;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .dropdown-menu {
   position: absolute;

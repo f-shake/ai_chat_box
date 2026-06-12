@@ -558,8 +558,8 @@ function renderGroupManagerList() {
         ${g.builtIn ? '<span class="gm-badge">内置</span>' : '<span class="gm-badge user-badge">自定义</span>'}
       </div>
       <div class="gm-actions">
-        ${g.builtIn ? '' : `<button class="gm-edit" onclick="editGroupName('${g.key}')">编辑</button>
-        <button class="gm-delete" onclick="deleteGroup('${g.key}')">删除</button>`}
+        <button class="gm-edit" onclick="editGroupName('${g.key}')">编辑</button>
+        <button class="gm-delete" onclick="deleteGroup('${g.key}')">删除</button>
       </div>
     </div>
   `).join('');
@@ -582,14 +582,33 @@ function editGroupName(key) {
 
 function deleteGroup(key) {
   const g = promptGroups.find(x => x.key === key);
-  if (!g || g.builtIn) return;
-  if (!confirm(`确定删除分组「${g.name}」吗？（分组下的智能体不会被删除）`)) return;
+  if (!g) return;
+  if (!confirm(`确定删除分组「${g.name}」吗？\n该分组下的所有智能体也会被删除。`)) return;
+
+  // Delete all prompts in this group
+  const removedPresetRefs = [];
+  userPrompts = userPrompts.filter(p => {
+    if (p.groupKey === key) {
+      if (p.presetRef) removedPresetRefs.push(p.presetRef);
+      return false;
+    }
+    return true;
+  });
+  // Hide presets in this group that weren't overridden
+  for (const p of PRESET_PROMPTS) {
+    if (p.groupKey === key && !hiddenPresetIds.includes(p.id) && !removedPresetRefs.includes(p.id)) {
+      hiddenPresetIds.push(p.id);
+    }
+  }
+  savePrompts();
+  saveHiddenPresets();
+
   promptGroups = promptGroups.filter(x => x.key !== key);
   saveGroups();
   const list = document.getElementById('gmList');
   if (list) list.innerHTML = renderGroupManagerList();
   renderPrompts();
-  showToast('分组已删除', 'info');
+  showToast(`分组「${g.name}」及所含智能体已删除`, 'info');
 }
 
 // ========== Prompts CRUD ==========
@@ -615,13 +634,22 @@ function saveHiddenPresets() {
 }
 
 function getAllPrompts() {
-  const overriddenIds = new Set(
-    userPrompts.filter(p => p.presetRef).map(p => p.presetRef)
+  const overrideMap = new Map(
+    userPrompts.filter(p => p.presetRef).map(p => [p.presetRef, p])
   );
-  const presets = PRESET_PROMPTS.filter(
-    p => !hiddenPresetIds.includes(p.id) && !overriddenIds.has(p.id)
-  );
-  return [...presets, ...userPrompts];
+  const result = [];
+  for (const p of PRESET_PROMPTS) {
+    if (hiddenPresetIds.includes(p.id)) continue;
+    if (overrideMap.has(p.id)) {
+      result.push(overrideMap.get(p.id));
+    } else {
+      result.push(p);
+    }
+  }
+  for (const p of userPrompts) {
+    if (!p.presetRef) result.push(p);
+  }
+  return result;
 }
 
 function findPromptById(id) {
