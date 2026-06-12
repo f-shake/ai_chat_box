@@ -7,6 +7,7 @@
 loadConversations();
 loadActiveId();
 loadGroups();
+await loadPresetPrompts();
 loadPrompts();
 loadApiConfigs();
 loadActiveApiConfigId();
@@ -46,6 +47,15 @@ if (activeConvId) {
 msgCounter = 0;
 renderMessages();
 renderHistory();
+
+// Smart scroll: detect when user scrolls up to pause auto-scroll during streaming
+const _msgContainer = $('messageContainer');
+_msgContainer._userScrolledAway = false;
+_msgContainer.addEventListener('scroll', function() {
+  const threshold = 60; // px from bottom to re-enable auto-scroll
+  const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < threshold;
+  this._userScrolledAway = !atBottom;
+});
 renderApiConfigs();
 
 // File input change handler

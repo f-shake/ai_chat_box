@@ -457,15 +457,17 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
     const formatted = formatContent(content);
     const needsCollapse = !isPlaceholder && content.length > COLLAPSE_LENGTH;
 
-    let bubbleInner;
+    let bubbleInner, footerHtml = '';
     if (isPlaceholder) {
       bubbleInner = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
     } else if (needsCollapse) {
       msgFullContent[id] = formatted;
-      const preview = content.slice(0, COLLAPSE_LENGTH) + '…';
       bubbleInner = `<div class="bubble-label">系统提示词</div>
-        <div class="msg-body collapsed"></div>
-        <button class="collapse-toggle" onclick="toggleMessageCollapse('${id}')">展开 ▾</button>`;
+        <div class="msg-body collapsed"></div>`;
+      footerHtml = `<div class="bubble-footer">
+        <button class="collapse-toggle" onclick="toggleMessageCollapse('${id}')">展开 ▾</button>
+        <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+      </div>`;
     } else {
       bubbleInner = `<div class="bubble-label">系统提示词</div>
         <div class="msg-body">${formatted}</div>`;
@@ -473,7 +475,7 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
 
     div.innerHTML = `
       <div class="avatar">${avatarChar}</div>
-      <div class="bubble">${bubbleInner}</div>`;
+      <div class="bubble">${bubbleInner}${footerHtml}</div>`;
 
     if (needsCollapse) {
       const body = div.querySelector('.msg-body');
@@ -492,23 +494,31 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
     } else if (needsCollapse && !isArrayContent) {
       msgFullContent[id] = formatted;
       const preview = textForLength.slice(0, COLLAPSE_LENGTH) + '…';
-      bubbleInner = `<div class="msg-body collapsed">${escapeHtml(preview)}</div>
-        <button class="collapse-toggle" onclick="toggleMessageCollapse('${id}')">展开 ▾</button>`;
+      bubbleInner = `<div class="msg-body collapsed">${escapeHtml(preview)}</div>`;
     } else {
       bubbleInner = `<div class="msg-body">${formatted}</div>`;
     }
+
+    // Always wrap timestamp + actions in .bubble-footer for consistent row layout
+    let footerHtml = '<div class="bubble-footer">';
+    if (needsCollapse && !isArrayContent && !isPlaceholder) {
+      footerHtml += `<button class="collapse-toggle" onclick="toggleMessageCollapse('${id}')">展开 ▾</button>`;
+    }
+    footerHtml += `<span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+    if (!isPlaceholder) {
+      footerHtml += `<span class="msg-actions">
+          <button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
+          ${role === 'user' && msgIdx >= 0 ? `<button class="msg-action-btn" onclick="editMessage(${msgIdx})" title="编辑">${ICON_EDIT}</button>` : ''}
+          ${role === 'assistant' ? `<button class="msg-action-btn" onclick="regenerateMessage()" title="重新生成">${ICON_REGEN}</button>` : ''}
+        </span>`;
+    }
+    footerHtml += '</div>';
 
     div.innerHTML = `
       <div class="avatar">${avatarChar}</div>
       <div class="bubble">
         ${bubbleInner}
-        <span class="timestamp">${new Date().toLocaleTimeString()}</span>
-        ${isPlaceholder ? '' : `
-        <span class="msg-actions">
-          <button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
-          ${role === 'user' && msgIdx >= 0 ? `<button class="msg-action-btn" onclick="editMessage(${msgIdx})" title="编辑">${ICON_EDIT}</button>` : ''}
-          ${role === 'assistant' ? `<button class="msg-action-btn" onclick="regenerateMessage()" title="重新生成">${ICON_REGEN}</button>` : ''}
-        </span>`}
+        ${footerHtml}
       </div>`;
 
     if (needsCollapse && !isArrayContent) {
@@ -536,7 +546,13 @@ function addMessageActions(id) {
     <button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
     ${isAssistant ? `<button class="msg-action-btn" onclick="regenerateMessage()" title="重新生成">${ICON_REGEN}</button>` : ''}
   `;
-  bubble.appendChild(actions);
+  // Place inside .bubble-footer if present, otherwise append to bubble
+  const footer = bubble.querySelector('.bubble-footer');
+  if (footer) {
+    footer.appendChild(actions);
+  } else {
+    bubble.appendChild(actions);
+  }
 }
 
 function copyMessage(id) {
@@ -573,6 +589,18 @@ function regenerateMessage() {
   sendMessage(currentConvMessages[lastUserIdx].content);
 }
 
+function _appendToFooter(bubble, ts, actions) {
+  if (!ts && !actions) return;
+  let footer = bubble.querySelector('.bubble-footer');
+  if (!footer) {
+    footer = document.createElement('div');
+    footer.className = 'bubble-footer';
+    bubble.appendChild(footer);
+  }
+  if (ts) footer.appendChild(ts);
+  if (actions) footer.appendChild(actions);
+}
+
 function updateMessageContent(id, content) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -581,9 +609,11 @@ function updateMessageContent(id, content) {
   const ts = bubble.querySelector('.timestamp');
   const actions = bubble.querySelector('.msg-actions');
   bubble.innerHTML = renderMessageContent(content, id);
-  if (ts) bubble.appendChild(ts);
-  if (actions) bubble.appendChild(actions);
-  $('messageContainer').scrollTop = $('messageContainer').scrollHeight;
+  _appendToFooter(bubble, ts, actions);
+  const container = $('messageContainer');
+  if (!container._userScrolledAway) {
+    container.scrollTop = container.scrollHeight;
+  }
 }
 
 function updateMessageWithReasoning(id, reasoning, content) {
@@ -594,18 +624,21 @@ function updateMessageWithReasoning(id, reasoning, content) {
   const ts = bubble.querySelector('.timestamp');
   const actions = bubble.querySelector('.msg-actions');
 
+  // Preserve details open state across streaming updates
+  const existingDetails = bubble.querySelector('.reasoning-block');
+  const detailsWasOpen = existingDetails ? existingDetails.open : false;
+
   let html = '';
   if (reasoning && !content) {
     // Only reasoning received so far — show inline with streaming indicator
     html += `<div class="reasoning-streaming">
-        <span>${escapeHtml(reasoning)}</span>
-        <span class="dot-pulse"><span></span><span></span><span></span></span>
+        <span>${formatContent(reasoning)}</span>
       </div>`;
   } else if (reasoning && content) {
     // Both reasoning and content available
-    html += `<details class="reasoning-block" open>
+    html += `<details class="reasoning-block">
         <summary class="reasoning-summary">思考过程</summary>
-        <div class="reasoning-content">${escapeHtml(reasoning)}</div>
+        <div class="reasoning-content">${formatContent(reasoning)}</div>
       </details>`;
     html += formatContent(content);
   } else {
@@ -614,9 +647,16 @@ function updateMessageWithReasoning(id, reasoning, content) {
   }
 
   bubble.innerHTML = html;
-  if (ts) bubble.appendChild(ts);
-  if (actions) bubble.appendChild(actions);
-  $('messageContainer').scrollTop = $('messageContainer').scrollHeight;
+  // Restore details open state so manual expand/collapse survives streaming updates
+  if (detailsWasOpen) {
+    const newDetails = bubble.querySelector('.reasoning-block');
+    if (newDetails) newDetails.open = true;
+  }
+  _appendToFooter(bubble, ts, actions);
+  const container = $('messageContainer');
+  if (!container._userScrolledAway) {
+    container.scrollTop = container.scrollHeight;
+  }
 }
 
 // ==================== Edit message ====================
@@ -691,6 +731,8 @@ function getMessageContent(id) {
   const clone = bubble.cloneNode(true);
   const ts = clone.querySelector('.timestamp');
   if (ts) ts.remove();
+  const toggle = clone.querySelector('.collapse-toggle');
+  if (toggle) toggle.remove();
   return clone.textContent.trim();
 }
 

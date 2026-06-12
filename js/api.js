@@ -112,7 +112,7 @@ async function sendMessage(text) {
 
   const msgId = addMessageDOM('assistant', '', true);
 
-  const sys = systemPrompt.value.trim();
+  const sys = replacePromptPlaceholders(systemPrompt.value.trim());
   const historyLimitVal = parseInt(historyLimit.value) || 20;
   const msgsForApi = [];
   if (sys) msgsForApi.push({ role: 'system', content: sys });

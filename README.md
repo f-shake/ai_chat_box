@@ -8,7 +8,7 @@
 <p>
   <img src="https://img.shields.io/badge/status-%E7%A8%B3%E5%AE%9A-brightgreen" alt="状态">
   <img src="https://img.shields.io/badge/build-%E9%9B%B6%E6%9E%84%E5%BB%BA-yellow" alt="零构建">
-  <img src="https://img.shields.io/badge/dependencies-marked.js%20only-blue" alt="依赖">
+  <img src="https://img.shields.io/badge/dependencies-marked.js%20(CDN)%20only-blue" alt="依赖">
   <img src="https://img.shields.io/badge/language-Vanilla%20JavaScript-orange" alt="语言">
 </p>
 
@@ -34,7 +34,7 @@
 - **导出聊天记录** — 一键导出为 CSV 格式（含 BOM，完美支持中文）
 - **连接测试** — 内置连接测试功能，实时显示 API 状态
 - **消息操作** — 复制、重新生成、折叠/展开长消息
-- **配置持久化** — 所有设置自动保存至浏览器 localStorage
+- **配置持久化** — 所有设置自动保存至 IndexedDB（降级至 localStorage）
 - **响应式设计** — 桌面端三栏布局，移动端侧栏滑出，触摸友好
 - **零构建步骤** — 打开即用，无需 Node.js、npm install、webpack
 
@@ -118,9 +118,9 @@ ai-chat-box/
 │   ├── conversations.js    # 对话引擎（CRUD、消息渲染、流式展示）
 │   ├── prompts.js          # Agent 管理体系（预设、自定义、搜索）
 │   ├── utils.js            # 工具函数（DOM 操作、Toast、Markdown）
-│   └── marked.min.js       # marked.js v15.0.12（Markdown 渲染）
-└── img/
-    └── copy.svg            # 复制图标
+│   └── db.js               # IndexedDB 持久化层（降级至 localStorage）
+├── data/
+│   └── presets.json        # 内置智能体预设提示词
 ```
 
 ---
@@ -132,8 +132,8 @@ ai-chat-box/
 | **Vanilla JavaScript (ES6+)** | 全部应用逻辑 |
 | **HTML5** | 页面结构 |
 | **CSS3** | 样式与布局 |
-| **marked.js** | Markdown → HTML 渲染（唯一外部依赖） |
-| **localStorage** | 数据持久化 |
+| **marked.js (CDN)** | Markdown → HTML 渲染（唯一外部依赖） |
+| **IndexedDB / localStorage** | 数据持久化（降级策略） |
 | **Fetch API + SSE** | 流式 API 通信 |
 | **SVG** | 图标 |
 
