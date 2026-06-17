@@ -7,11 +7,13 @@ let controller = null;
 let isStreaming = false;
 let pendingFiles = []; // { name, size, mime, content, _type }[]
 let editingMsgIdx = -1; // index in currentConvMessages being edited, -1 = none
+const _msgDataCache = new Map(); // msgId -> { content, reasoning_content }
 
 // ==================== SVG icon paths ====================
 const ICON_COPY = '<svg viewBox="0 0 1024 1024"><path d="M661.333333 234.666667A64 64 0 0 1 725.333333 298.666667v597.333333a64 64 0 0 1-64 64h-469.333333A64 64 0 0 1 128 896V298.666667a64 64 0 0 1 64-64z m-21.333333 85.333333H213.333333v554.666667h426.666667v-554.666667z m191.829333-256a64 64 0 0 1 63.744 57.856l0.256 6.144v575.701333a42.666667 42.666667 0 0 1-85.034666 4.992l-0.298667-4.992V149.333333H384a42.666667 42.666667 0 0 1-42.368-37.674666L341.333333 106.666667a42.666667 42.666667 0 0 1 37.674667-42.368L384 64h447.829333z" fill="currentColor"/></svg>';
 const ICON_REGEN = '<svg viewBox="0 0 1024 1024"><path d="M910.848 307.84A448.192 448.192 0 0 0 78.976 396.544c-7.04 26.88 14.4 51.456 42.176 51.456 22.08 0 40.64-15.744 46.848-36.928a358.528 358.528 0 0 1 664.128-60.352l-79.424-21.312a44.8 44.8 0 0 0-23.168 86.592l173.056 46.336q23.04 6.208 43.712-5.76 20.672-11.904 26.88-34.944l46.336-173.12a44.8 44.8 0 1 0-86.528-23.168l-22.144 82.56zM52.864 600L6.4 773.12a44.8 44.8 0 0 0 86.528 23.168l20.992-78.4a448.192 448.192 0 0 0 830.976-90.432c7.168-26.88-14.336-51.456-42.112-51.456-22.08 0-40.64 15.744-46.848 36.928a358.592 358.592 0 0 1-665.792 56.96l83.072 22.336a44.8 44.8 0 0 0 23.168-86.592L123.392 559.36q-23.04-6.208-43.712 5.76-20.672 11.904-26.88 34.944z" fill="currentColor"/></svg>';
 const ICON_EDIT = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+const ICON_ARROW_DOWN = '<svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>';
 
 // ==================== File Upload Handling ====================
 
@@ -378,6 +380,7 @@ function renderMessages() {
 
   const msgs = container.querySelectorAll('.message');
   msgs.forEach(el => el.remove());
+  _msgDataCache.clear();
 
   const sysContent = $('systemPrompt').value.trim();
   if (sysContent) {
@@ -511,8 +514,25 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
     }
     footerHtml += `<span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
     if (!isPlaceholder) {
+      let copyHtml;
+      if (role === 'assistant') {
+        const msgContent = msgIdx >= 0 ? currentConvMessages[msgIdx] : null;
+        const hasReasoning = msgContent
+          && msgContent.content?.trim()?.length > 0
+          && msgContent.reasoning_content?.trim()?.length > 0;
+        copyHtml = `<div class="split-copy-wrap">
+          <button class="msg-action-btn split-copy-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
+          <button class="msg-action-btn split-copy-toggle" onclick="toggleCopyMenu('${id}')">${ICON_ARROW_DOWN}</button>
+          <div class="copy-menu" id="copy-menu-${id}">
+            <div class="copy-menu-item reasoning-menu-item" id="rmi-${id}" style="display:none" onclick="copyThinkingContent('${id}')">复制思考内容</div>
+            <div class="copy-menu-item" onclick="copyRawMarkdown('${id}')">复制原始回复内容</div>
+          </div>
+        </div>`;
+      } else {
+        copyHtml = `<button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>`;
+      }
       footerHtml += `<span class="msg-actions">
-          <button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
+          ${copyHtml}
           ${role === 'user' && msgIdx >= 0 ? `<button class="msg-action-btn" onclick="editMessage(${msgIdx})" title="编辑">${ICON_EDIT}</button>` : ''}
           ${role === 'assistant' ? `<button class="msg-action-btn" onclick="regenerateMessage()" title="重新生成">${ICON_REGEN}</button>` : ''}
         </span>`;
@@ -526,6 +546,26 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
         ${footerHtml}
       </div>`;
 
+    // Store msgIdx for message data lookups (copyRawMarkdown, copyThinkingContent)
+    if (msgIdx >= 0) div.dataset.msgIdx = msgIdx;
+    // Cache raw message data by element id for reliable copy access
+    if (role === 'assistant') {
+      const rawContent = typeof content === 'string' ? content : '';
+      const msgData = msgIdx >= 0 ? currentConvMessages[msgIdx] : null;
+      _msgDataCache.set(id, {
+        content: rawContent,
+        reasoning_content: msgData?.reasoning_content || '',
+      });
+    }
+
+    // Show "复制思考内容" menu item only if DOM actually has a reasoning block rendered
+    if (role === 'assistant') {
+      const reasoningItem = div.querySelector('.reasoning-menu-item');
+      if (reasoningItem) {
+        reasoningItem.style.display = div.querySelector('.bubble .reasoning-block, .bubble .reasoning-streaming') ? '' : 'none';
+      }
+    }
+
     if (needsCollapse && !isArrayContent) {
       const body = div.querySelector('.msg-body');
       body.dataset.truncated = textForLength.slice(0, COLLAPSE_LENGTH) + '…';
@@ -537,18 +577,57 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
   return id;
 }
 
-function addMessageActions(id) {
+function addMessageActions(id, msgIdx) {
   const el = document.getElementById(id);
   if (!el) return;
   const bubble = el.querySelector('.bubble');
   if (!bubble) return;
   if (bubble.querySelector('.msg-actions')) return;  // already present
 
+  // Set msgIdx if provided (for streaming messages that didn't have it)
+  if (msgIdx !== undefined && msgIdx >= 0) {
+    el.dataset.msgIdx = msgIdx;
+  }
+
+  // Cache raw message data by element id for reliable copy access
+  if (el.classList.contains('assistant')) {
+    const idx = parseInt(el.dataset.msgIdx, 10);
+    if (!isNaN(idx) && idx >= 0 && idx < currentConvMessages.length) {
+      const msg = currentConvMessages[idx];
+      if (msg) {
+        _msgDataCache.set(id, {
+          content: typeof msg.content === 'string' ? msg.content : '',
+          reasoning_content: msg.reasoning_content || '',
+        });
+      }
+    }
+  }
+
   const isAssistant = el.classList.contains('assistant');
+  let copyHtml;
+  if (isAssistant) {
+    const idx = parseInt(el.dataset.msgIdx, 10);
+    const msg = (!isNaN(idx) && idx >= 0 && idx < currentConvMessages.length)
+      ? currentConvMessages[idx] : null;
+    const hasReasoning = msg
+      && msg.content?.trim()?.length > 0
+      && msg.reasoning_content?.trim()?.length > 0
+      && bubble.querySelector('.reasoning-block, .reasoning-streaming');
+    copyHtml = `<div class="split-copy-wrap">
+      <button class="msg-action-btn split-copy-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
+      <button class="msg-action-btn split-copy-toggle" onclick="toggleCopyMenu('${id}')">${ICON_ARROW_DOWN}</button>
+      <div class="copy-menu" id="copy-menu-${id}">
+        ${hasReasoning ? `<div class="copy-menu-item" onclick="copyThinkingContent('${id}')">复制思考内容</div>` : ''}
+        <div class="copy-menu-item" onclick="copyRawMarkdown('${id}')">复制原始回复内容</div>
+      </div>
+    </div>`;
+  } else {
+    copyHtml = `<button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>`;
+  }
   const actions = document.createElement('span');
   actions.className = 'msg-actions';
   actions.innerHTML = `
-    <button class="msg-action-btn" onclick="copyMessage('${id}')" title="复制">${ICON_COPY}</button>
+    ${copyHtml}
     ${isAssistant ? `<button class="msg-action-btn" onclick="regenerateMessage()" title="重新生成">${ICON_REGEN}</button>` : ''}
   `;
   // Place inside .bubble-footer if present, otherwise append to bubble
@@ -558,22 +637,6 @@ function addMessageActions(id) {
   } else {
     bubble.appendChild(actions);
   }
-}
-
-function copyMessage(id) {
-  const text = getMessageContent(id);
-  if (!text) return;
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('已复制到剪贴板', 'success');
-  }).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-    showToast('已复制到剪贴板', 'success');
-  });
 }
 
 function regenerateMessage() {
@@ -728,7 +791,100 @@ function cancelEdit() {
   if (indicator) indicator.classList.add('hidden');
 }
 
-function getMessageContent(id) {
+// ==================== Split-button Copy ====================
+
+function getMsgDataByEl(id) {
+  // Prefer the reliable Map cache
+  if (_msgDataCache.has(id)) return _msgDataCache.get(id);
+  // Fallback: look up from currentConvMessages by data-msg-idx
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const idx = parseInt(el.dataset.msgIdx, 10);
+  if (isNaN(idx) || idx < 0 || idx >= currentConvMessages.length) return null;
+  return currentConvMessages[idx];
+}
+
+/**
+ * Main copy: strips reasoning block, copies plain text + rich HTML to clipboard.
+ */
+function copyMessage(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const bubble = el.querySelector('.bubble');
+  if (!bubble) return;
+
+  const clone = bubble.cloneNode(true);
+  // Remove UI-only elements first
+  const ts = clone.querySelector('.timestamp');
+  if (ts) ts.remove();
+  const toggle = clone.querySelector('.collapse-toggle');
+  if (toggle) toggle.remove();
+
+  // Try to strip reasoning block, but keep it if it's the only content
+  const reasoningBlock = clone.querySelector('.reasoning-block, .reasoning-streaming');
+  if (reasoningBlock) {
+    // Check if there's other content besides the reasoning block
+    const beforeText = reasoningBlock.textContent;
+    reasoningBlock.remove();
+    if (!clone.textContent.trim()) {
+      // Content was entirely inside the reasoning block — restore it
+      clone.appendChild(reasoningBlock);
+    }
+  }
+
+  const plainText = clone.textContent.trim();
+  const htmlContent = clone.innerHTML;
+
+  _writeClipboardRich(plainText, htmlContent);
+}
+
+/**
+ * Copy only the reasoning/thinking content as plain text.
+ * Only available when both content and reasoning_content exist (real thinking).
+ */
+function copyThinkingContent(id) {
+  _closeCopyMenus();
+  const data = _msgDataCache.get(id);
+  // Require both content and reasoning to confirm it's actual thinking
+  if (data?.content && data?.reasoning_content) {
+    _writeClipboardPlain(data.reasoning_content);
+    return;
+  }
+  // Fallback
+  const msg = getMsgDataByEl(id);
+  if (!msg || !msg.content || !msg.reasoning_content) {
+    showToast('没有思考内容', 'info');
+    return;
+  }
+  _writeClipboardPlain(msg.reasoning_content);
+}
+
+/**
+ * Copy the raw markdown content (original response without thinking).
+ * Falls back to reasoning_content if content is empty (edge case where
+ * the model returned content in the reasoning_content field).
+ */
+function copyRawMarkdown(id) {
+  _closeCopyMenus();
+  const data = _msgDataCache.get(id);
+  if (data) {
+    // Prefer content, but fall back to reasoning_content if content is empty
+    const text = data.content || data.reasoning_content || '';
+    if (text) { _writeClipboardPlain(text); return; }
+  }
+  // Fallback via data-msg-idx
+  const msg = getMsgDataByEl(id);
+  if (msg) {
+    const text = msg.content || msg.reasoning_content || '';
+    if (text) { _writeClipboardPlain(text); return; }
+  }
+  // Last resort: extract rendered text from DOM
+  const text = extractDomText(id);
+  if (text) { _writeClipboardPlain(text); return; }
+  showToast('无法获取消息内容', 'error');
+}
+
+function extractDomText(id) {
   const el = document.getElementById(id);
   if (!el) return '';
   const bubble = el.querySelector('.bubble');
@@ -740,6 +896,102 @@ function getMessageContent(id) {
   if (toggle) toggle.remove();
   return clone.textContent.trim();
 }
+
+// ==================== Clipboard helpers ====================
+
+function _writeClipboardRich(plainText, htmlContent) {
+  const wrappedHtml = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head><body>${htmlContent}</body></html>`;
+
+  if (navigator.clipboard.write) {
+    navigator.clipboard.write([
+      new ClipboardItem({
+        'text/plain': new Blob([plainText], { type: 'text/plain' }),
+        'text/html': new Blob([wrappedHtml], { type: 'text/html' }),
+      })
+    ]).then(() => {
+      showToast('已复制到剪贴板', 'success');
+    }).catch(() => {
+      _writeClipboardPlain(plainText);
+    });
+  } else {
+    _writeClipboardPlain(plainText);
+  }
+}
+
+function _writeClipboardPlain(text) {
+  if (!text) { showToast('没有可复制的内容', 'info'); return; }
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('已复制到剪贴板', 'success');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showToast('已复制到剪贴板', 'success');
+  });
+}
+
+// ==================== Copy menu toggle ====================
+
+function toggleCopyMenu(id) {
+  // Close all other menus first
+  document.querySelectorAll('.copy-menu.open').forEach(m => {
+    m.classList.remove('open');
+    // Reset inline positioning
+    m.style.top = '';
+    m.style.bottom = '';
+    m.style.left = '';
+    m.style.right = '';
+  });
+  const menu = document.getElementById('copy-menu-' + id);
+  if (!menu) return;
+  menu.classList.toggle('open');
+
+  if (menu.classList.contains('open')) {
+    const wrap = menu.closest('.split-copy-wrap');
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const gap = 2;
+    // Force reflow so offsetHeight is accurate
+    void menu.offsetHeight;
+    const menuH = menu.offsetHeight;
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    if (spaceBelow >= menuH) {
+      // Open downward
+      menu.style.top = (rect.bottom + gap) + 'px';
+      menu.style.bottom = 'auto';
+    } else {
+      // Open upward
+      menu.style.top = 'auto';
+      menu.style.bottom = (window.innerHeight - rect.top + gap) + 'px';
+    }
+
+    // Horizontal: prefer left-align, nudge right if overflow
+    const menuW = menu.offsetWidth;
+    const margin = 8;
+    if (rect.left + menuW > window.innerWidth - margin) {
+      menu.style.left = 'auto';
+      menu.style.right = margin + 'px';
+    } else {
+      menu.style.left = Math.max(margin, rect.left) + 'px';
+      menu.style.right = 'auto';
+    }
+  }
+}
+
+function _closeCopyMenus() {
+  document.querySelectorAll('.copy-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.split-copy-wrap')) {
+    _closeCopyMenus();
+  }
+});
 
 function removeMessage(id) {
   const el = document.getElementById(id);

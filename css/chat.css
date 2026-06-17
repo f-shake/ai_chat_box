@@ -191,6 +191,63 @@
 .message.user .msg-action-btn { color: rgba(255,255,255,.5); }
 .message.user .msg-action-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
 
+/* ===== Split Copy Button ===== */
+.split-copy-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+.split-copy-btn {
+  border-radius: 4px 0 0 4px !important;
+  border-right: 1px solid transparent !important;
+}
+.split-copy-toggle {
+  border-radius: 0 4px 4px 0 !important;
+  padding: 4px 3px !important;
+  min-width: 16px;
+}
+.split-copy-toggle svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+.message.user .split-copy-toggle {
+  color: rgba(255,255,255,.5);
+}
+.message.user .split-copy-toggle:hover {
+  background: rgba(255,255,255,.12);
+  color: #fff;
+}
+
+/* ===== Copy Dropdown Menu ===== */
+.copy-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 140px;
+  background: var(--bg-dialog, #fff);
+  border: 1px solid var(--border-light, #e0e0e0);
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,.10));
+  padding: 4px 0;
+  display: none;
+  margin: 0;
+}
+.copy-menu.open {
+  display: block;
+}
+.copy-menu-item {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: default;
+  white-space: nowrap;
+  transition: background .12s;
+  user-select: none;
+}
+.copy-menu-item:hover {
+  background: var(--bg-hover, #f5f7fa);
+}
+
 /* ===== Input Area ===== */
 .input-area {
   padding: 0 20px 8px;

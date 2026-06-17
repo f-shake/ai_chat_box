@@ -165,7 +165,7 @@ async function sendMessage(text) {
       const conv = findConv(activeConvId);
       if (conv) {
         conv.messages = currentConvMessages;
-        currentConvMessages.push({ role: 'assistant', content: fullContent });
+        currentConvMessages.push({ role: 'assistant', content: fullContent, reasoning_content: fullReasoning });
         saveConversations();
         currentConvMessages.pop();
       }
@@ -252,11 +252,11 @@ async function sendMessage(text) {
     } else {
       updateMessageContent(msgId, fullContent);
     }
-    currentConvMessages.push({ role: 'assistant', content: fullContent });
+    currentConvMessages.push({ role: 'assistant', content: fullContent, reasoning_content: fullReasoning });
     const convDirty = findConv(activeConvId);
     if (convDirty) convDirty.updatedAt = getNow();
     saveCurrentConversation();
-    addMessageActions(msgId);
+    addMessageActions(msgId, currentConvMessages.length - 1);
     // Async title generation — only for the first user message
     const userMsgCount = currentConvMessages.filter(m => m.role === 'user').length;
     if (userMsgCount <= 1) {
@@ -267,11 +267,11 @@ async function sendMessage(text) {
     if (err.name === 'AbortError') {
       // Only save if there's actual content, not just reasoning/thinking
       if (fullContent) {
-        currentConvMessages.push({ role: 'assistant', content: fullContent });
+        currentConvMessages.push({ role: 'assistant', content: fullContent, reasoning_content: fullReasoning });
         const convDirty = findConv(activeConvId);
         if (convDirty) convDirty.updatedAt = getNow();
         saveCurrentConversation();
-        addMessageActions(msgId);
+        addMessageActions(msgId, currentConvMessages.length - 1);
       } else {
         // Only reasoning content or nothing — discard the placeholder message
         removeMessage(msgId);
@@ -287,7 +287,7 @@ async function sendMessage(text) {
         const convDirty = findConv(activeConvId);
         if (convDirty) convDirty.updatedAt = getNow();
         saveCurrentConversation();
-        addMessageActions(msgId);
+        addMessageActions(msgId, currentConvMessages.length - 1);
       } else {
         // No actual content — just remove the placeholder, keep user message
         removeMessage(msgId);
