@@ -30,7 +30,6 @@ if (await parseSharedConfig()) {
 // Load config params
 const hasSavedConfig = loadConfigFromStorage();
 loadFormatConfig();
-
 // Load search config
 loadSearchConfig();
 // Sync search toggle with config state

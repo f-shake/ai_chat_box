@@ -215,12 +215,21 @@
           <span>启用联网搜索</span>
         </label>
       </div>
-      <div class="form-group" style="margin-top:6px">
+      <div class="form-group">
         <label for="proxyUrl">代理地址</label>
         <input type="text" id="proxyUrl" placeholder="http://localhost:3456" value="http://localhost:3456">
         <span class="hint">Node.js 搜索代理的服务地址，启动后填写</span>
       </div>
-      <div class="form-group row-group" style="margin-top:6px">
+      <div class="form-group">
+        <label for="preferredEngine">首选搜索引擎</label>
+        <select id="preferredEngine">
+          <option value="sogou">搜狗搜索</option>
+          <option value="bing">必应搜索</option>
+          <option value="so360">360 搜索</option>
+        </select>
+        <span class="hint">搜索失败时会自动降级到其他可用引擎</span>
+      </div>
+      <div class="form-group row-group">
         <button class="btn-primary btn-sm" onclick="testSearchProxy()">测试连接</button>
         <span id="proxyStatus" class="proxy-status"></span>
       </div>
