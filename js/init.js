@@ -29,6 +29,7 @@ if (await parseSharedConfig()) {
 
 // Load config params
 const hasSavedConfig = loadConfigFromStorage();
+loadFormatConfig();
 
 // Sync active API config to hidden form fields
 const activeConfig = getActiveApiConfig();

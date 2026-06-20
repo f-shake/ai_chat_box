@@ -120,7 +120,7 @@ ai-chat-box/
 │   ├── utils.js            # 工具函数（DOM 操作、Toast、Markdown）
 │   └── db.js               # IndexedDB 持久化层（降级至 localStorage）
 ├── data/
-│   └── presets.json        # 内置智能体预设提示词
+│   └── presets.json        # 内置预设提示词
 ```
 
 ---

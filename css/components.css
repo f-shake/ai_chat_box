@@ -78,6 +78,9 @@
 .form-group:has(#topP) {
   margin-top: 6px;
 }
+#panelFormat .form-group {
+  margin-bottom: 16px;
+}
 .form-group .hint {
   font-size: 11px;
   color: var(--text-tertiary);
@@ -142,7 +145,7 @@
 .side-panel { display: block; }
 .side-panel.hidden { display: none; }
 
-.sidebar-hr { border: none; border-top: 1px solid var(--border-light); margin: 4px 0; }
+.sidebar-hr { border: none; border-top: 1px solid var(--border-light); margin: 16px 0; }
 
 .btn-primary {
   background: var(--accent);
@@ -186,6 +189,11 @@
 .btn-outline:hover { background: var(--bg-hover); }
 
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* ===== Layout utilities (reduce inline style in HTML) ===== */
+.flex-row { display: flex; gap: 6px; }
+.flex-1 { flex: 1; }
+.ml-auto { margin-left: auto; }
 
 .btn-cancel { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--border-medium); }
 .btn-cancel:hover { background: var(--border-light); }

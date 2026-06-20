@@ -141,7 +141,7 @@ function editGroupName(key) {
 function deleteGroup(key) {
   const g = promptGroups.find(x => x.key === key);
   if (!g) return;
-  if (!confirm(`确定删除分组「${g.name}」吗？\n该分组下的所有智能体也会被删除。`)) return;
+  if (!confirm(`确定删除分组「${g.name}」吗？\n该分组下的所有预设也会被删除。`)) return;
 
   // Delete all prompts in this group
   const removedPresetRefs = [];
@@ -166,7 +166,7 @@ function deleteGroup(key) {
   const list = document.getElementById('gmList');
   if (list) list.innerHTML = renderGroupManagerList();
   renderPrompts();
-  showToast(`分组「${g.name}」及所含智能体已删除`, 'info');
+  showToast(`分组「${g.name}」及所含预设已删除`, 'info');
 }
 
 // ========== Prompts CRUD ==========
@@ -237,7 +237,7 @@ function renderPrompts() {
   }
 
   if (all.length === 0) {
-    container.innerHTML = '<div class="prompts-empty">暂无匹配的智能体</div>';
+    container.innerHTML = '<div class="prompts-empty">暂无匹配的预设</div>';
     return;
   }
 
@@ -355,10 +355,10 @@ function showPromptDialog(promptToEdit) {
   overlay.className = 'prompt-dialog-overlay';
   overlay.innerHTML = `
     <div class="prompt-dialog" style="width:480px">
-      <h3>${isEdit ? '编辑智能体' : '新增智能体'}</h3>
+      <h3>${isEdit ? '编辑预设' : '新增预设'}</h3>
       <div class="form-group">
         <label for="dpTitle">标题</label>
-        <input type="text" id="dpTitle" placeholder="给智能体取个名字" value="${isEdit ? escapeHtml(promptToEdit.title) : ''}">
+        <input type="text" id="dpTitle" placeholder="给预设取个名字" value="${isEdit ? escapeHtml(promptToEdit.title) : ''}">
       </div>
       <div class="form-group">
         <label for="dpDesc">描述（选填）</label>
@@ -418,7 +418,7 @@ function showPromptDialog(promptToEdit) {
       promptToEdit.groupKey = groupKey;
       promptToEdit.config = config;
       savePrompts();
-      showToast('智能体已更新', 'success');
+      showToast('预设已更新', 'success');
     } else {
       userPrompts.push({
         id: 'user_' + genId(),
@@ -429,7 +429,7 @@ function showPromptDialog(promptToEdit) {
         config,
       });
       savePrompts();
-      showToast('智能体已添加', 'success');
+      showToast('预设已添加', 'success');
     }
     overlay.remove();
     renderPrompts();
@@ -447,7 +447,7 @@ function editPrompt(id) {
   if (p) { showPromptDialog(p); return; }
 
   const preset = PRESET_PROMPTS.find(x => x.id === id);
-  if (!preset) { showToast('找不到该智能体', 'error'); return; }
+  if (!preset) { showToast('找不到该预设', 'error'); return; }
 
   let override = userPrompts.find(u => u.presetRef === preset.id);
   if (!override) {
@@ -488,7 +488,7 @@ function deletePrompt(id) {
 }
 
 function resetAllPresets() {
-  if (!confirm('确定重置所有预设到初始状态吗？\n这将恢复所有被隐藏和修改的预设，并删除自定义智能体。')) return;
+  if (!confirm('确定重置所有预设到初始状态吗？\n这将恢复所有被隐藏和修改的预设，并删除自定义预设。')) return;
   userPrompts = [];
   hiddenPresetIds = [];
   savePrompts();

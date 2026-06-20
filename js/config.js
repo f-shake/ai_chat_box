@@ -52,6 +52,100 @@ function loadConfigFromStorage() {
   } catch (_) { return false; }
 }
 
+/** Load persistent format settings into UI controls */
+function _readFormatCfg() {
+  return {
+    fontSize: parseFloat($('formatFontSize').value) || 16,
+    lineHeight: parseFloat($('formatLineHeight').value) || 1.85,
+    msgGap: parseInt($('formatMsgGap').value, 10) || 16,
+    paraGap: parseInt($('formatParaGap').value, 10) || 6,
+    indent: $('formatIndent').checked,
+  };
+}
+
+function _applyFormatCfgToUI(cfg) {
+  if (cfg.fontSize) { $('formatFontSize').value = cfg.fontSize; $('formatFontSizeValue').textContent = cfg.fontSize; }
+  if (cfg.lineHeight) { $('formatLineHeight').value = cfg.lineHeight; $('formatLineHeightValue').textContent = cfg.lineHeight; }
+  if (cfg.msgGap) { $('formatMsgGap').value = cfg.msgGap; $('formatMsgGapValue').textContent = cfg.msgGap; }
+  if (cfg.paraGap !== undefined) { $('formatParaGap').value = cfg.paraGap; $('formatParaGapValue').textContent = cfg.paraGap; }
+  if (cfg.indent !== undefined) $('formatIndent').checked = cfg.indent;
+}
+
+function loadFormatConfig() {
+  try {
+    const raw = ls.getItem(FORMAT_KEY);
+    if (!raw) { applyFormatSettings(_readFormatCfg()); return false; }
+    const f = JSON.parse(raw);
+    _applyFormatCfgToUI(f);
+    applyFormatSettings(f);
+    return true;
+  } catch (_) { return false; }
+}
+
+function resetFormatConfig() {
+  if (!confirm('重置格式为默认值？')) return;
+  _applyFormatCfgToUI({ fontSize: 16, lineHeight: 1.85, msgGap: 16, paraGap: 6, indent: false });
+  _flushFormat();
+}
+
+function onFormatFontSizeChange(val) {
+  $('formatFontSizeValue').textContent = val;
+  applyFormatSettings(_readFormatCfg());
+  _debounceSaveFormat();
+}
+function onFormatLineHeightChange(val) {
+  $('formatLineHeightValue').textContent = val;
+  applyFormatSettings(_readFormatCfg());
+  _debounceSaveFormat();
+}
+function onFormatMsgGapChange(val) {
+  $('formatMsgGapValue').textContent = val;
+  applyFormatSettings(_readFormatCfg());
+  _debounceSaveFormat();
+}
+function onFormatParaGapChange(val) {
+  $('formatParaGapValue').textContent = val;
+  applyFormatSettings(_readFormatCfg());
+  _debounceSaveFormat();
+}
+function onFormatIndentChange(checked) {
+  applyFormatSettings(_readFormatCfg());
+  _debounceSaveFormat();
+}
+
+/** Debounced silent persist — fires 300ms after last change */
+let _formatSaveTimer;
+function _debounceSaveFormat() {
+  clearTimeout(_formatSaveTimer);
+  _formatSaveTimer = setTimeout(_flushFormat, 300);
+}
+function _flushFormat() {
+  const cfg = _readFormatCfg();
+  try { ls.setItem(FORMAT_KEY, JSON.stringify(cfg)); } catch (_) {}
+}
+
+/** Apply format settings to the DOM via CSS variables */
+function applyFormatSettings(cfg) {
+  document.documentElement.style.setProperty('--msg-font-size', (cfg.fontSize || 16) + 'px');
+  document.documentElement.style.setProperty('--msg-line-height', cfg.lineHeight || 1.85);
+  document.documentElement.style.setProperty('--msg-gap', (cfg.msgGap || 16) + 'px');
+  document.documentElement.style.setProperty('--para-gap', (cfg.paraGap || 6) + 'px');
+  document.documentElement.style.setProperty('--msg-indent', cfg.indent ? '2em' : '0');
+}
+
+// Inject a style tag so all existing & future elements pick up CSS variables
+(function injectFormatStyle() {
+  const style = document.createElement('style');
+  style.id = 'ai-chat-format-dynamic';
+  style.textContent = `
+    .message .bubble, .msg-body { font-size: var(--msg-font-size, 16px); line-height: var(--msg-line-height, 1.85); }
+    .message.assistant .bubble p { text-indent: var(--msg-indent, 0); }
+    .messages { gap: var(--msg-gap, 16px); }
+    .bubble p { margin: var(--para-gap, 6px) 0; }
+  `;
+  document.head.appendChild(style);
+})();
+
 // ==================== API Config Management ====================
 
 const DEFAULT_API_CONFIGS = [
@@ -415,9 +509,11 @@ function switchSideTab(tab) {
   $('tabApi').classList.toggle('active', tab === 'api');
   $('tabParams').classList.toggle('active', tab === 'params');
   $('tabPrompts').classList.toggle('active', tab === 'prompts');
+  $('tabFormat').classList.toggle('active', tab === 'format');
   $('panelApi').classList.toggle('hidden', tab !== 'api');
   $('panelParams').classList.toggle('hidden', tab !== 'params');
   $('panelPrompts').classList.toggle('hidden', tab !== 'prompts');
+  $('panelFormat').classList.toggle('hidden', tab !== 'format');
   if (tab === 'api') renderApiConfigs();
   if (tab === 'prompts') renderPrompts();
 }
@@ -481,7 +577,7 @@ function showShareDialog() {
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
           <input type="checkbox" data-key="prompt">
-          <span>🤖 当前智能体配置</span>
+          <span>🤖 当前预设配置</span>
         </label>
       </div>
       <div class="dialog-actions">

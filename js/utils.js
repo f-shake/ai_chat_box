@@ -2,6 +2,7 @@
 const $ = id => document.getElementById(id);
 const ls = localStorage;
 const CONFIG_KEY = 'ai_chat_config';
+const FORMAT_KEY = 'ai_chat_format';
 const CONV_KEY   = 'ai_chat_conversations';
 const ACTIVE_KEY = 'ai_chat_active_conv';
 const PROMPTS_KEY = 'ai_chat_prompts';
