@@ -456,9 +456,6 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
   div.className = `message ${role}`;
   div.id = id;
 
-  const avatarMap = { user: 'U', assistant: 'A', 'system-prompt': 'S', 'system-msg': 'i' };
-  const avatarChar = avatarMap[role] || 'i';
-
   if (role === 'system-msg') {
     div.innerHTML = `<div class="bubble">${escapeHtml(content)}</div>`;
   } else if (role === 'system-prompt') {
@@ -482,7 +479,6 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
     }
 
     div.innerHTML = `
-      <div class="avatar">${avatarChar}</div>
       <div class="bubble">${bubbleInner}${footerHtml}</div>`;
 
     if (needsCollapse) {
@@ -540,7 +536,6 @@ function addMessageDOM(role, content, isPlaceholder = false, msgIdx = -1) {
     footerHtml += '</div>';
 
     div.innerHTML = `
-      <div class="avatar">${avatarChar}</div>
       <div class="bubble">
         ${bubbleInner}
         ${footerHtml}
@@ -813,12 +808,24 @@ function copyMessage(id) {
   const bubble = el.querySelector('.bubble');
   if (!bubble) return;
 
+  // If the message body is collapsed, swap in the full content first
+  const body = bubble.querySelector('.msg-body');
+  let needsContentSwap = body && body.classList.contains('collapsed') && msgFullContent[id];
+
   const clone = bubble.cloneNode(true);
   // Remove UI-only elements first
   const ts = clone.querySelector('.timestamp');
   if (ts) ts.remove();
   const toggle = clone.querySelector('.collapse-toggle');
   if (toggle) toggle.remove();
+
+  // Remove the split-copy menu (contains "复制思考内容" / "复制原始回复内容" text)
+  const copyMenu = clone.querySelector('.split-copy-wrap');
+  if (copyMenu) copyMenu.remove();
+
+  // Remove standalone msg-actions (used in streaming addMessageActions path)
+  const standaloneActions = clone.querySelector(':scope > .msg-actions');
+  if (standaloneActions) standaloneActions.remove();
 
   // Try to strip reasoning block, but keep it if it's the only content
   const reasoningBlock = clone.querySelector('.reasoning-block, .reasoning-streaming');
@@ -832,8 +839,25 @@ function copyMessage(id) {
     }
   }
 
-  const plainText = clone.textContent.trim();
-  const htmlContent = clone.innerHTML;
+  let plainText;
+  let htmlContent;
+  if (needsContentSwap) {
+    // Build plain text from the full stored content
+    const temp = document.createElement('div');
+    temp.innerHTML = msgFullContent[id];
+    temp.querySelectorAll('.collapse-toggle, .msg-file-toggle, .msg-actions').forEach(b => b.remove());
+    plainText = temp.textContent.trim();
+    // For rich HTML, use the clone but with the full msg body content
+    const msgBody = clone.querySelector('.msg-body');
+    if (msgBody) {
+      msgBody.innerHTML = msgFullContent[id];
+      msgBody.classList.remove('collapsed');
+    }
+    htmlContent = clone.innerHTML;
+  } else {
+    plainText = clone.textContent.trim();
+    htmlContent = clone.innerHTML;
+  }
 
   _writeClipboardRich(plainText, htmlContent);
 }
@@ -889,11 +913,24 @@ function extractDomText(id) {
   if (!el) return '';
   const bubble = el.querySelector('.bubble');
   if (!bubble) return '';
+
+  // If the message is collapsed, use the full stored content
+  const body = bubble.querySelector('.msg-body');
+  if (body && body.classList.contains('collapsed') && msgFullContent[id]) {
+    const temp = document.createElement('div');
+    temp.innerHTML = msgFullContent[id];
+    // Remove any toggle/file-toggle buttons and action menus inside
+    temp.querySelectorAll('.collapse-toggle, .msg-file-toggle, .msg-actions').forEach(b => b.remove());
+    return temp.textContent.trim();
+  }
+
   const clone = bubble.cloneNode(true);
   const ts = clone.querySelector('.timestamp');
   if (ts) ts.remove();
   const toggle = clone.querySelector('.collapse-toggle');
   if (toggle) toggle.remove();
+  const copyMenu = clone.querySelector('.split-copy-wrap');
+  if (copyMenu) copyMenu.remove();
   return clone.textContent.trim();
 }
 
