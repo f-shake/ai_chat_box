@@ -398,7 +398,7 @@ function renderMessages() {
   currentConvMessages.forEach((msg, i) => {
     // Skip protocol-level messages (tool calls/results) that shouldn't be visible
     if (msg.role === 'tool') return;
-    if (msg.role === 'assistant' && msg.tool_calls && !msg.content) return;
+    if (msg.role === 'assistant' && msg.tool_calls) return; // 中间 tool_calls 消息不渲染
     addMessageDOM(msg.role, msg.content, false, i);
   });
   container.scrollTop = container.scrollHeight;

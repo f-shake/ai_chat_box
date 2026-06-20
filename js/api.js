@@ -133,7 +133,12 @@ async function sendMessage(text) {
   const slice = historyLimitVal > 0 ? currentConvMessages.slice(-historyLimitVal * 2, -1) : [];
   for (const m of slice) {
     if (m.role === 'system-msg') continue; // 跳过仅用于展示的消息
-    msgsForApi.push({ role: m.role, content: flattenContentForApi(m.content) });
+    const msg = { role: m.role };
+    // tool_calls 消息的 content 应为 null（不传），不能传空格
+    if (m.content) msg.content = flattenContentForApi(m.content);
+    if (m.tool_calls) msg.tool_calls = m.tool_calls;
+    if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;
+    msgsForApi.push(msg);
   }
   msgsForApi.push({ role: 'user', content: flattenContentForApi(userContent) });
 
@@ -727,9 +732,9 @@ function _formatToolInProgress(toolCalls) {
     try {
       const args = JSON.parse(tc.function.arguments);
       if (tc.function.name === 'web_search') {
-        lines.push('> 搜索中: ' + (args.query || ''));
+        lines.push('> 搜索中：' + (args.query || ''));
       } else if (tc.function.name === 'web_fetch') {
-        lines.push('> 抓取中: ' + (args.url || ''));
+        lines.push('> 抓取中：' + (args.url || ''));
       }
     } catch {
       lines.push('> 执行中...');
@@ -751,16 +756,16 @@ function _formatToolResult(toolCalls, toolResults) {
       if (tc.function.name === 'web_search') {
         const query = args.query || '';
         if (Array.isArray(result)) {
-          lines.push('> 搜索完成（共 ' + result.length + ' 条结果）: ' + query);
+          lines.push('> 搜索完成（共 ' + result.length + ' 条结果）：' + query);
         } else if (result && result.error) {
-          lines.push('> 搜索失败: ' + query + ' — ' + result.error.slice(0, 50));
+          lines.push('> 搜索失败：' + query + ' — ' + result.error.slice(0, 50));
         }
       } else if (tc.function.name === 'web_fetch') {
         const url = args.url || '';
         if (result && result.content) {
-          lines.push('> 页面已获取（约 ' + result.content.length + ' 字）: ' + url);
+          lines.push('> 页面已获取（约 ' + result.content.length + ' 字）：' + url);
         } else if (result && result.error) {
-          lines.push('> 抓取失败: ' + url + ' — ' + result.error.slice(0, 50));
+          lines.push('> 抓取失败：' + url + ' — ' + result.error.slice(0, 50));
         }
       }
     } catch (_) {}
