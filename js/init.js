@@ -29,6 +29,13 @@ if (await parseSharedConfig()) {
 
 // Load config params
 const hasSavedConfig = loadConfigFromStorage();
+loadFormatConfig();
+
+// Load search config
+loadSearchConfig();
+// Sync search toggle with config state
+const webSearchToggle = $('webSearchToggle');
+if (webSearchToggle) webSearchToggle.checked = searchConfig.enabled === true;
 
 // Sync active API config to hidden form fields
 const activeConfig = getActiveApiConfig();

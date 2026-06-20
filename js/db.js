@@ -177,7 +177,7 @@ function importData(data, selection) {
     ls.setItem('ai_chat_prompts', JSON.stringify(data.prompts));
     ls.setItem('ai_chat_groups', JSON.stringify(data.groups || []));
     ls.setItem('ai_chat_hidden_prompts', JSON.stringify(data.hiddenPrompts || []));
-    results.push(`智能体: ${data.prompts.length} 个`);
+    results.push(`预设: ${data.prompts.length} 个`);
   }
   if (selection.apiConfigs && data.apiConfigs) {
     ls.setItem('ai_chat_api_configs', JSON.stringify(data.apiConfigs));
@@ -212,7 +212,7 @@ function showExportDialog() {
         </label>
         <div id="exportJsonOptions" style="padding:4px 0 4px 28px;display:flex;flex-direction:column;gap:6px">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" checked data-key="prompts"> 🤖 智能体清单
+            <input type="checkbox" checked data-key="prompts"> 🤖 预设清单
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" checked data-key="apiConfigs"> 🔌 服务清单
@@ -312,7 +312,7 @@ function _showImportPreview(data) {
       <div class="export-checkboxes" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" checked data-key="prompts">
-          <span>🤖 智能体 ${data.prompts ? '(' + data.prompts.length + ' 个)' : '(无)'}</span>
+          <span>🤖 预设 ${data.prompts ? '(' + data.prompts.length + ' 个)' : '(无)'}</span>
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" checked data-key="apiConfigs">

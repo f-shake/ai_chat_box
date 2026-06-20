@@ -2,6 +2,7 @@
 const $ = id => document.getElementById(id);
 const ls = localStorage;
 const CONFIG_KEY = 'ai_chat_config';
+const FORMAT_KEY = 'ai_chat_format';
 const CONV_KEY   = 'ai_chat_conversations';
 const ACTIVE_KEY = 'ai_chat_active_conv';
 const PROMPTS_KEY = 'ai_chat_prompts';
@@ -9,6 +10,7 @@ const GROUPS_KEY = 'ai_chat_groups';
 const HIDDEN_PROMPTS_KEY = 'ai_chat_hidden_prompts';
 const API_CONFIGS_KEY = 'ai_chat_api_configs';
 const ACTIVE_API_CONFIG_KEY = 'ai_chat_active_api_config';
+const SEARCH_CONFIG_KEY = 'ai_chat_search_config';
 
 function showToast(msg, type = 'info', duration = 3000) {
   const t = $('toast');
@@ -155,6 +157,7 @@ async function readFileAsContent(file) {
  */
 function flattenContentForApi(content) {
   if (typeof content === 'string') return content;
+  if (!content) return ' '; // null — e.g. assistant message with tool_calls only
 
   const textParts = [];
   const imageParts = [];
@@ -184,6 +187,7 @@ function flattenContentForApi(content) {
 /** Extract plain text from content (string or array) — for titles, previews, copy */
 function extractTextParts(content) {
   if (typeof content === 'string') return content;
+  if (!content) return '';
   return content
     .filter(p => p.type === 'text')
     .map(p => p.text)
