@@ -105,6 +105,8 @@ const showActions = ref(false)
 const canCollapse = computed(() => {
   if (props.isStreaming) return false
   if (props.message.role === 'assistant') return false
+  // System prompt always collapsible (regardless of length)
+  if (props.message.role === 'system-prompt') return true
   const text = typeof props.message.content === 'string' ? props.message.content : ''
   return text.length > COLLAPSE_LENGTH
 })
@@ -122,8 +124,8 @@ const renderedHtml = ref('')
 
 watch(
   () => props.message.content,
-  async (val) => {
-    renderedHtml.value = await renderMessageContent(val)
+  async (val: any) => {
+    renderedHtml.value = await renderMessageContent(val || '')
   },
   { immediate: true }
 )
@@ -151,7 +153,7 @@ async function renderMessageContent(content: MessageContent): Promise<string> {
 }
 
 const timestamp = computed(() => new Date().toLocaleTimeString())
-const hasReasoning = computed(() => props.message.reasoning_content?.trim()?.length > 0)
+const hasReasoning = computed(() => !!(props.message.reasoning_content?.trim()))
 
 async function copyMessage() {
   const text = typeof props.message.content === 'string' ? props.message.content : ''

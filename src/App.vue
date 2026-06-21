@@ -1,6 +1,10 @@
 <template>
   <div class="app-root">
-    <AppHeader />
+    <AppHeader
+      @open-export="exportDialogVisible = true"
+      @open-import="importDialogVisible = true"
+      @open-share="shareDialogVisible = true"
+    />
 
     <div class="app-body">
       <!-- Desktop: Left sidebar (toggle via hamburger button) -->
@@ -53,6 +57,11 @@
         <el-button type="primary" @click="onWelcomeDone">我知道了</el-button>
       </template>
     </el-dialog>
+
+    <!-- Export / Import / Share dialogs -->
+    <ExportDialog v-model="exportDialogVisible" />
+    <ImportDialog v-model="importDialogVisible" />
+    <ShareDialog v-model="shareDialogVisible" />
   </div>
 </template>
 
@@ -65,10 +74,16 @@ import SettingsSidebar from '@/components/layout/SettingsSidebar.vue'
 import { Setting } from '@element-plus/icons-vue'
 import { WELCOME_DONE_KEY } from '@/utils/constants'
 import ChatArea from '@/components/chat/ChatArea.vue'
+import ExportDialog from '@/components/dialogs/ExportDialog.vue'
+import ImportDialog from '@/components/dialogs/ImportDialog.vue'
+import ShareDialog from '@/components/dialogs/ShareDialog.vue'
 
 const uiStore = useUiStore()
 
 const welcomeVisible = ref(false)
+const exportDialogVisible = ref(false)
+const importDialogVisible = ref(false)
+const shareDialogVisible = ref(false)
 
 onMounted(() => {
   nextTick(() => {

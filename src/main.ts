@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import router from '@/router'
 import '@/styles/global.scss'
@@ -61,11 +61,12 @@ async function bootstrap() {
   await searchStore.load()
 
   // Handle visual viewport for mobile
-  if (window.visualViewport) {
+  const vv = window.visualViewport
+  if (vv) {
     const setAppHeight = () => {
-      document.documentElement.style.setProperty('--app-height', `${window.visualViewport.height}px`)
+      document.documentElement.style.setProperty('--app-height', `${vv.height}px`)
     }
-    window.visualViewport.addEventListener('resize', setAppHeight)
+    vv.addEventListener('resize', setAppHeight)
     setAppHeight()
   }
 

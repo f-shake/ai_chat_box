@@ -57,6 +57,7 @@ import { useConfigStore } from '@/stores/configStore'
 import { useStreamChat } from '@/composables/useStreamChat'
 import { useFileHandler } from '@/composables/useFileHandler'
 import { DEFAULT_CONFIG_PARAMS } from '@/utils/constants'
+import { ElInput } from 'element-plus'
 import { Plus, Promotion, VideoPause } from '@element-plus/icons-vue'
 import ChatInputOptions from './ChatInputOptions.vue'
 import FilePreviewStrip from './FilePreviewStrip.vue'
@@ -94,12 +95,13 @@ function doSend() {
   inputText.value = ''
 }
 
-function handleKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
+function handleKeyDown(e: Event) {
+  const ke = e as KeyboardEvent
+  if (ke.key === 'Enter' && !ke.shiftKey) {
+    ke.preventDefault()
     doSend()
   }
-  if (e.key === 'Escape') {
+  if (ke.key === 'Escape') {
     if (conversationStore.editingMsgIdx >= 0) {
       conversationStore.cancelEdit()
     }

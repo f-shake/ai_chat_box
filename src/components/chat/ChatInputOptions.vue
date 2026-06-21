@@ -62,13 +62,14 @@ watch(() => searchStore.config.enabled, (val) => {
   searchEnabled.value = val
 })
 
-function onReasoningChange(val: boolean) {
-  configStore.params.reasoningEnabled = val
+function onReasoningChange(val: string | number | boolean) {
+  const v = Boolean(val)
+  configStore.params.reasoningEnabled = v
   configStore.saveParams()
 }
 
-function onSearchChange(val: boolean) {
-  searchStore.setEnabled(val)
+function onSearchChange(val: string | number | boolean) {
+  searchStore.setEnabled(Boolean(val))
 }
 
 function cancelEdit() {

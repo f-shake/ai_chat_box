@@ -83,9 +83,8 @@ export function useStreamChat() {
     // Build system prompt with search guidance
     const sys = replacePromptPlaceholders(configStore.params.systemPrompt)
     const isBocha = searchStore.config.provider === 'bocha'
-    const searchEnabled = searchStore.config.enabled && (
-      isBocha ? searchStore.config.bochaApiKey : searchStore.config.proxyUrl
-    )
+    const hasSearchConfig = isBocha ? searchStore.config.bochaApiKey : searchStore.config.proxyUrl
+    const searchEnabled = searchStore.config.enabled && !!hasSearchConfig
     let searchGuidance = ''
     if (searchEnabled) {
       if (isBocha) {

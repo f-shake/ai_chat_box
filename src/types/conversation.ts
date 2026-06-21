@@ -34,7 +34,7 @@ export interface ToolCall {
 }
 
 export interface Message {
-  role: 'user' | 'assistant' | 'system' | 'tool'
+  role: 'user' | 'assistant' | 'system' | 'system-msg' | 'tool' | 'system-prompt'
   content: MessageContent | null
   reasoning_content?: string
   tool_calls?: ToolCall[]

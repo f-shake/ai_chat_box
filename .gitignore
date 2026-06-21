@@ -37,3 +37,4 @@ temp/
 node_modules/
 dist/
 *.local
+*.tsbuildinfo

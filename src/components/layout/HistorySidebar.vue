@@ -41,6 +41,7 @@ import { useUiStore } from '@/stores/uiStore'
 import { useConversationStore } from '@/stores/conversationStore'
 import type { Conversation } from '@/types'
 import { ElMessageBox } from 'element-plus'
+import { Edit, Close } from '@element-plus/icons-vue'
 
 const uiStore = useUiStore()
 const conversationStore = useConversationStore()
