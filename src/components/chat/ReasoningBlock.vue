@@ -1,5 +1,5 @@
 <template>
-  <details v-if="reasoning" class="reasoning-block" :open="autoOpen">
+  <details v-if="reasoning" :open="isOpen" class="reasoning-block" @toggle="onToggle">
     <summary>
       <span class="reasoning-title">深度思考</span>
       <span class="reasoning-toggle">{{ isOpen ? '收起' : '展开' }}</span>
@@ -19,6 +19,24 @@ const props = defineProps<{
 
 const isOpen = ref(props.autoOpen ?? false)
 const renderedHtml = ref('')
+let updatingFromProp = false
+
+// Sync isOpen when autoOpen prop changes (streaming start/end)
+watch(() => props.autoOpen, (val) => {
+  if (val !== undefined && val !== isOpen.value) {
+    updatingFromProp = true
+    isOpen.value = val
+  }
+})
+
+// Track toggle from native details clicks (user manual toggle)
+function onToggle(e: Event) {
+  if (updatingFromProp) {
+    updatingFromProp = false
+    return
+  }
+  isOpen.value = (e.currentTarget as HTMLDetailsElement).open
+}
 
 watch(
   () => props.reasoning,
@@ -29,10 +47,6 @@ watch(
 )
 
 const renderedReasoning = computed(() => renderedHtml.value)
-
-function toggle() {
-  isOpen.value = !isOpen.value
-}
 </script>
 
 <style scoped>

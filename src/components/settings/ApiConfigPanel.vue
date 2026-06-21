@@ -161,6 +161,9 @@ function onSaved() {
   border-radius: 8px;
   margin-bottom: 4px;
 }
+.config-card :deep(.el-card__body) {
+  padding: 8px 12px;
+}
 
 .config-card.active {
   border-color: var(--el-color-primary);

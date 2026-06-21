@@ -1,5 +1,10 @@
+export type SearchProvider = 'local' | 'bocha'
+
 export interface SearchConfig {
-  proxyUrl: string
+  provider: SearchProvider
   enabled: boolean
-  preferredEngine: string
+  // Local proxy
+  proxyUrl: string
+  // Bocha search
+  bochaApiKey: string
 }

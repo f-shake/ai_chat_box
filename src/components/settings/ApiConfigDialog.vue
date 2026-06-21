@@ -10,12 +10,18 @@
       <el-form-item label="API Key">
         <el-input v-model="form.apiKey" type="password" show-password placeholder="sk-..." />
       </el-form-item>
+      <el-form-item>
+        <el-button @click="testConn" :loading="testing">测试连接</el-button>
+        <span v-if="testResult" :class="['test-result', testResult.success ? 'success' : 'error']">
+          {{ testResult.text }}
+        </span>
+      </el-form-item>
       <el-form-item label="模型">
         <el-select
           v-model="form.model"
           allow-create
           filterable
-          placeholder="输入或选择模型"
+          placeholder="测试连接后自动填充，或手动输入"
           style="width: 100%"
         >
           <el-option
@@ -25,12 +31,6 @@
             :value="m"
           />
         </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button @click="testConn" :loading="testing">测试连接</el-button>
-        <span v-if="testResult" :class="['test-result', testResult.success ? 'success' : 'error']">
-          {{ testResult.text }}
-        </span>
       </el-form-item>
     </el-form>
     <template #footer>

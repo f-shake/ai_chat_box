@@ -2,13 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as db from '@/services/dbService'
 import { SEARCH_CONFIG_KEY } from '@/utils/constants'
-import type { SearchConfig } from '@/types'
+import type { SearchConfig, SearchProvider } from '@/types'
 
 export const useSearchStore = defineStore('search', () => {
   const config = ref<SearchConfig>({
-    proxyUrl: 'http://localhost:3456',
+    provider: 'local',
     enabled: false,
-    preferredEngine: 'sogou',
+    proxyUrl: 'http://localhost:3456',
+    bochaApiKey: '',
   })
 
   async function load() {
@@ -30,8 +31,8 @@ export const useSearchStore = defineStore('search', () => {
     await save()
   }
 
-  async function setProxyUrl(url: string) {
-    config.value.proxyUrl = url
+  async function setProvider(p: SearchProvider) {
+    config.value.provider = p
     await save()
   }
 
@@ -40,6 +41,6 @@ export const useSearchStore = defineStore('search', () => {
     load,
     save,
     setEnabled,
-    setProxyUrl,
+    setProvider,
   }
 })

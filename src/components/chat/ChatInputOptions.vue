@@ -8,7 +8,7 @@
     />
     <el-switch
       v-model="searchEnabled"
-      active-text="搜索"
+      active-text="联网搜索"
       size="small"
       @change="onSearchChange"
     />

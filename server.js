@@ -10,8 +10,8 @@
  *   curl http://localhost:3456/api/fetch?url=https://example.com
  */
 
-const http = require('http');
-const { URL } = require('url');
+import http from 'node:http';
+import { URL } from 'node:url';
 
 const PORT = 3456;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
@@ -70,6 +70,36 @@ const ENGINES = {
     }
   },
 
+  // ---- 百度搜索 ----
+  baidu: {
+    name: '百度搜索',
+    buildUrl: (q) => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}`,
+    parse: (html, baseUrl) => {
+      const results = [];
+      // 百度结果块：<div class="result">...</div> 或 <div class="c-container">...</div>
+      let blocks = html.match(/<div\s+class="[^"]*result[^"]*"[\s\S]*?<\/div>\s*<\/div>/gi) || [];
+      if (blocks.length === 0) {
+        blocks = html.match(/<div\s+class="[^"]*c-container[^"]*"[\s\S]*?<\/div>\s*<\/div>/gi) || [];
+      }
+      for (const block of blocks) {
+        const link = block.match(/<a[^>]*href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+        if (!link) continue;
+        // 跳过百度自家链接
+        const url = link[1];
+        if (url.includes('baidu.com/link') || url.includes('baidu.com/s?')) continue;
+        const title = stripTags(link[2]);
+        const sn = block.match(/<span\s+class="[^"]*content-[^"]*"[^>]*>([\s\S]*?)<\/span>/i) ||
+                  block.match(/<div\s+class="[^"]*c-abstract[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
+                  block.match(/<span\s+class="[^"]*abstract[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
+        const snippet = sn ? stripTags(sn[1]) : '';
+        if (title && url) {
+          results.push({ title, url, snippet });
+        }
+      }
+      return results;
+    }
+  },
+
   // ---- 必应搜索 ----
   bing: {
     name: '必应搜索',
@@ -98,7 +128,7 @@ const ENGINES = {
   // ---- 360 搜索 ----
   so360: {
     name: '360搜索',
-    buildUrl: (q) => `https://www.so.com/s?q=${encodeURIComponent(q)}`,
+    buildUrl: (q) => `https://www.so.com/s?fr=360sou_newhome&src=home_www&q=${encodeURIComponent(q)}`,
     parse: (html, baseUrl) => {
       const results = [];
       // 360结果块：<li class="res-list">...</li> 或 <div class="res-item">...
@@ -163,37 +193,29 @@ async function searchEngine(name, query) {
 }
 
 async function searchWithFallback(query, preferredEngine) {
-  // 如果没有指定引擎或指定为 all，并行搜索所有引擎并合并结果
+  // 没有指定引擎 或 engine=all：并行搜索所有引擎，全量返回
   if (!preferredEngine || preferredEngine === 'all') {
     return searchAllEngines(query);
   }
 
-  // 指定了特定引擎：先用首选，按顺序降级
-  const engineOrder = ['sogou', 'bing', 'so360'];
-  if (preferredEngine && engineOrder.includes(preferredEngine)) {
-    const idx = engineOrder.indexOf(preferredEngine);
-    engineOrder.splice(idx, 1);
-    engineOrder.unshift(preferredEngine);
+  // 指定了特定引擎：只搜该引擎，不降级
+  if (!ENGINES[preferredEngine]) {
+    return { engine: null, results: [], errors: [{ engine: preferredEngine, error: '未知引擎' }] };
   }
 
-  const errors = [];
-  for (const name of engineOrder) {
-    try {
-      const results = await searchEngine(name, query);
-      if (results.length > 0) {
-        return {
-          engine: name,
-          results: results,
-          fallbacks: errors.length,
-          errors: errors.length > 0 ? errors : undefined,
-        };
-      }
-      errors.push({ engine: name, error: '无搜索结果' });
-    } catch (e) {
-      errors.push({ engine: name, error: e.message || String(e) });
-    }
+  try {
+    const results = await searchEngine(preferredEngine, query);
+    return {
+      engine: preferredEngine,
+      results: results,
+    };
+  } catch (e) {
+    return {
+      engine: null,
+      results: [],
+      errors: [{ engine: preferredEngine, error: e.message || String(e) }],
+    };
   }
-  return { engine: null, results: [], fallbacks: errors.length - 1, errors };
 }
 
 /**

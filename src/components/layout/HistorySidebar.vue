@@ -59,10 +59,12 @@ function formatTime(iso: string): string {
   const now = new Date()
   const isToday = d.toDateString() === now.toDateString()
   if (isToday) return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
-  if (d.toDateString() === yesterday.toDateString()) return '昨天'
-  return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  // Format: MM-DD HH:mm
+  const MM = String(d.getMonth() + 1).padStart(2, '0')
+  const DD = String(d.getDate()).padStart(2, '0')
+  const HH = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${MM}-${DD} ${HH}:${mm}`
 }
 
 function handleRename(conv: Conversation) {
@@ -109,7 +111,7 @@ function handleClearAll() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -121,7 +123,7 @@ function handleClearAll() {
 
 .history-list {
   flex: 1;
-  padding: 8px;
+  padding: 4px 8px;
 }
 
 .history-empty {
@@ -133,10 +135,10 @@ function handleClearAll() {
 }
 
 .history-item {
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 5px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
   transition: background 0.15s;
 
   &:hover {
@@ -154,7 +156,7 @@ function handleClearAll() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-bottom: 2px;
+  line-height: 1.4;
 }
 
 .history-item-meta {
@@ -163,6 +165,7 @@ function handleClearAll() {
   justify-content: space-between;
   font-size: 11px;
   color: var(--text-tertiary);
+  line-height: 1.3;
 }
 
 .history-item-actions {

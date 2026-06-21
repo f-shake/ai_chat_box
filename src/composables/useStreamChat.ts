@@ -82,14 +82,24 @@ export function useStreamChat() {
 
     // Build system prompt with search guidance
     const sys = replacePromptPlaceholders(configStore.params.systemPrompt)
-    const searchEnabled = searchStore.config.enabled && searchStore.config.proxyUrl
+    const isBocha = searchStore.config.provider === 'bocha'
+    const searchEnabled = searchStore.config.enabled && (
+      isBocha ? searchStore.config.bochaApiKey : searchStore.config.proxyUrl
+    )
     let searchGuidance = ''
     if (searchEnabled) {
-      searchGuidance = '\n\n【联网搜索能力】\n'
-        + '1. 你可以使用 web_search 搜索互联网获取最新信息。\n'
-        + '2. 对于你知道的网站（如天气网站、财经网站等），可以直接用 web_fetch 获取内容，不必先搜索。\n'
-        + '3. 如果搜索结果摘要中的信息不足，请用 web_fetch 打开最相关的链接获取完整内容。\n'
-        + '4. 搜索结果同时来自搜狗、必应、360 等多个搜索引擎，每个引擎的结果分开返回，请综合多个来源的信息给出更准确的回答。'
+      if (isBocha) {
+        searchGuidance = '\n\n【联网搜索能力】\n'
+          + '你可以使用 web_search 工具搜索互联网获取最新信息。'
+          + '搜索结果包含标题、URL、摘要、来源网站和发布时间。'
+          + '根据搜索结果中的信息回答用户的问题，并引用相关来源。'
+      } else {
+        searchGuidance = '\n\n【联网搜索能力】\n'
+          + '1. 你可以使用 web_search 搜索互联网获取最新信息。\n'
+          + '2. 对于你知道的网站（如天气网站、财经网站等），可以直接用 web_fetch 获取内容，不必先搜索。\n'
+          + '3. 如果搜索结果摘要中的信息不足，请用 web_fetch 打开最相关的链接获取完整内容。\n'
+          + '4. 搜索结果同时来自多个搜索引擎，每个引擎的结果分开返回，请综合多个来源的信息给出更准确的回答。'
+      }
     }
 
     // Build API messages
@@ -215,37 +225,54 @@ export function useStreamChat() {
       try {
         const args = JSON.parse(tc.function.arguments)
         const msg = conversationStore.currentMessages[streamMsgIdx.value]
+        const isBocha = searchStore.config.provider === 'bocha'
 
         if (tc.function.name === 'web_search') {
-          const searchResults = await searchService.searchWeb(
-            args.query,
-            args.count || 8,
-            searchStore.config.proxyUrl,
-            searchStore.config.preferredEngine
-          )
+          let searchResults: any[]
+          if (isBocha) {
+            searchResults = await searchService.bochaSearch(
+              args.query,
+              searchStore.config.bochaApiKey,
+              args.count || 10
+            )
+          } else {
+            searchResults = await searchService.searchWeb(
+              args.query,
+              args.count || 8,
+              searchStore.config.proxyUrl
+            )
+          }
           results.push({
             role: 'tool',
             tool_call_id: tc.id,
             content: JSON.stringify(searchResults),
           })
-          // Append status to message
           if (msg) {
             const status = `\n\n> 搜索完成（${searchResults.length} 条结果）：${args.query}`
             msg.content = (msg.content || '') + status
           }
         } else if (tc.function.name === 'web_fetch') {
-          const content = await searchService.fetchWebpage(
-            args.url,
-            searchStore.config.proxyUrl
-          )
-          results.push({
-            role: 'tool',
-            tool_call_id: tc.id,
-            content: JSON.stringify({ content }),
-          })
-          if (msg) {
-            const status = `\n\n> 页面已获取（约 ${content.length} 字）：${args.url}`
-            msg.content = (msg.content || '') + status
+          // web_fetch is only supported for local proxy
+          if (isBocha) {
+            results.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify({ error: '博查搜索不支持网页抓取，AI应根据搜索结果直接回答' }),
+            })
+          } else {
+            const content = await searchService.fetchWebpage(
+              args.url,
+              searchStore.config.proxyUrl
+            )
+            results.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify({ content }),
+            })
+            if (msg) {
+              const status = `\n\n> 页面已获取（约 ${content.length} 字）：${args.url}`
+              msg.content = (msg.content || '') + status
+            }
           }
         }
       } catch (e: any) {
@@ -288,6 +315,10 @@ export function useStreamChat() {
     const existingPrefix = conversationStore.currentMessages[streamMsgIdx.value]?.content || ''
     const prefixStr = typeof existingPrefix === 'string' ? existingPrefix : ''
 
+    // Preserve existing reasoning from prior rounds, append new reasoning with a blank line
+    const existingReasoning = conversationStore.currentMessages[streamMsgIdx.value]?.reasoning_content || ''
+    const reasoningPrefix = typeof existingReasoning === 'string' && existingReasoning ? existingReasoning + '\n\n' : ''
+
     try {
       await streamChat(
         { ...options, messages: msgs },
@@ -298,7 +329,8 @@ export function useStreamChat() {
             conversationStore.updateMessageContent(streamMsgIdx.value, prefixStr + '\n\n' + text)
           },
           onReasoning: (text: string) => {
-            conversationStore.updateMessageReasoning(streamMsgIdx.value, text)
+            // Append to existing reasoning (don't overwrite previous rounds)
+            conversationStore.updateMessageReasoning(streamMsgIdx.value, reasoningPrefix + text)
           },
           onToolCallChunk: (_i: number, _d: any) => {},
           onFinish: async (reason: string | null, nextToolCalls: ToolCall[]) => {

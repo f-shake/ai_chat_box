@@ -54,11 +54,12 @@ const uiStore = useUiStore()
 const isMobile = ref(window.innerWidth < 768)
 
 function onResize() {
-  isMobile.value = window.innerWidth < 768
-  // Auto-close history drawer on mobile when rotating to landscape
-  if (!isMobile.value && uiStore.historyVisible) {
+  const nowMobile = window.innerWidth < 768
+  // Transition from mobile → desktop: close drawer, show sidebar
+  if (isMobile.value && !nowMobile) {
     uiStore.closeHistory()
   }
+  isMobile.value = nowMobile
 }
 
 onMounted(() => {

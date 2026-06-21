@@ -111,12 +111,12 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  function saveCurrentConversation() {
+  function saveCurrentConversation(updateTime = true) {
     if (!activeConvId.value) return
     const conv = conversations.value.find((c) => c.id === activeConvId.value)
     if (!conv) return
     conv.messages = currentMessages.value
-    conv.updatedAt = getNow()
+    if (updateTime) conv.updatedAt = getNow()
 
     // Auto-title based on first user message
     if (conv.title === '新对话') {
@@ -156,9 +156,9 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   async function switchConversation(id: string) {
-    // Save current if active
+    // Save current if active (without bumping its timestamp)
     if (activeConvId.value) {
-      saveCurrentConversation()
+      saveCurrentConversation(false)
     }
     const conv = conversations.value.find((c) => c.id === id)
     if (conv) {
