@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" :title="editingId ? '编辑服务' : '新增服务'" width="500px">
+  <el-dialog v-model="visible" :title="editingId ? '编辑服务' : '新增服务'" width="90%" style="max-width: 500px">
     <el-form :model="form" label-width="80px">
       <el-form-item label="名称">
         <el-input v-model="form.name" placeholder="服务名称" />

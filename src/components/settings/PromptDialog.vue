@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" :title="editingId ? '编辑预设' : '新增预设'" width="550px">
+  <el-dialog v-model="visible" :title="editingId ? '编辑预设' : '新增预设'" width="90%" style="max-width: 550px">
     <el-form :model="form" label-width="100px">
       <el-form-item label="标题">
         <el-input v-model="form.title" placeholder="预设名称" />

@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="导入数据" width="500px">
+  <el-dialog v-model="visible" title="导入数据" width="90%" style="max-width: 500px">
     <div v-if="!importedData" class="import-step">
       <el-upload
         drag

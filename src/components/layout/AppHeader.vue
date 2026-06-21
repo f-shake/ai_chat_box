@@ -45,7 +45,7 @@
   </el-header>
 
   <!-- Rename dialog -->
-  <el-dialog v-model="renameDialogVisible" title="重命名对话" width="400px" :close-on-click-modal="true">
+  <el-dialog v-model="renameDialogVisible" title="重命名对话" width="90%" style="max-width: 400px" :close-on-click-modal="true">
     <el-input v-model="renameTitle" placeholder="输入新标题" @keyup.enter="doRename" />
     <template #footer>
       <el-button @click="renameDialogVisible = false">取消</el-button>

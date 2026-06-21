@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="导出数据" width="500px">
+  <el-dialog v-model="visible" title="导出数据" width="90%" style="max-width: 500px">
     <div class="export-section">
       <el-checkbox v-model="exportPrompts">预设提示词</el-checkbox>
       <el-checkbox v-model="exportApiConfigs">API 配置</el-checkbox>

@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="管理分组" width="450px">
+  <el-dialog v-model="visible" title="管理分组" width="90%" style="max-width: 450px">
     <div class="group-list">
       <div v-for="g in promptStore.groups" :key="g.key" class="group-item">
         <el-input

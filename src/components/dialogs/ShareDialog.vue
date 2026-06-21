@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="分享配置" width="500px">
+  <el-dialog v-model="visible" title="分享配置" width="90%" style="max-width: 500px">
     <div class="share-form">
       <el-checkbox v-model="shareUrl">服务地址 (URL)</el-checkbox>
       <el-checkbox v-model="shareModel">模型名称</el-checkbox>
