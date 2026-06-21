@@ -19,9 +19,11 @@
         <el-collapse v-model="openGroups" class="prompt-collapse">
           <el-collapse-item :name="group.key">
             <template #title>
-              <span class="group-title">{{ group.name }}</span>
-              <span class="group-count-spacer"></span>
-              <el-tag size="small" type="info" effect="plain" class="group-count-tag">{{ prompts.length }}</el-tag>
+              <div class="group-title-row">
+                <span class="group-title">{{ group.name }}</span>
+                <span class="group-spacer"></span>
+                <el-tag size="small" type="info" effect="plain" class="group-count-tag">{{ prompts.length }}</el-tag>
+              </div>
             </template>
             <div class="prompt-group-content">
               <div v-for="p in prompts" :key="p.id" class="prompt-item">
@@ -165,18 +167,25 @@ function onSaved() {
   align-items: center;
 }
 
+.group-title-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+}
+
 .group-title {
   flex: 0 0 auto;
   color: var(--el-text-color-primary);
 }
 
-.group-count-spacer {
+.group-spacer {
   flex: 1;
-  min-width: 8px;
 }
 
 .group-count-tag {
   flex-shrink: 0;
+  margin-right: 6px;
 }
 
 .prompt-collapse :deep(.el-collapse-item__wrap) {

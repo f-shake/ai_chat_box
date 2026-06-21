@@ -32,7 +32,7 @@
       <el-button
         v-if="!isStreaming"
         type="primary"
-        :disabled="disabled || !inputText.trim()"
+        :disabled="disabled || (!inputText.trim() && conversationStore.pendingFiles.length === 0)"
         @click="doSend"
         title="发送 (Enter)"
       >

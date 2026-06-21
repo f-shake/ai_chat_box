@@ -13,10 +13,11 @@
         v-if="isMobile"
         v-model="uiStore.historyVisible"
         :with-header="false"
-        :size="'85%'"
+        :size="'70%'"
         direction="ltr"
         :z-index="200"
         class="mobile-history-drawer"
+        :body-style="{ padding: 0 }"
       >
         <HistorySidebar />
       </el-drawer>
@@ -38,18 +39,52 @@
     >
       <SettingsSidebar />
     </el-drawer>
+
+    <!-- Welcome dialog -->
+    <el-dialog v-model="welcomeVisible" title="欢迎使用 AI 聊天助手" :width="isMobile ? '90%' : '480px'" :close-on-click-modal="false" :show-close="false">
+      <div class="welcome-content">
+        <p>在使用前，请先完成以下配置：</p>
+        <ol style="padding-left: 20px; line-height: 2;">
+          <li><strong>配置 AI 服务</strong> — 点击右上角 <el-icon><Setting /></el-icon> 进入设置 →「服务」面板，填入 API 地址和密钥，测试连接后即可开始聊天。</li>
+          <li><strong>（可选）配置联网搜索</strong> — 如需联网搜索，可在设置 →「搜索」面板中，选择「博查搜索」或启动本地搜索代理 server.js。</li>
+        </ol>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="onWelcomeDone">我知道了</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useUiStore } from '@/stores/uiStore'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import HistorySidebar from '@/components/layout/HistorySidebar.vue'
 import SettingsSidebar from '@/components/layout/SettingsSidebar.vue'
+import { Setting } from '@element-plus/icons-vue'
+import { WELCOME_DONE_KEY } from '@/utils/constants'
 import ChatArea from '@/components/chat/ChatArea.vue'
 
 const uiStore = useUiStore()
+
+const welcomeVisible = ref(false)
+
+onMounted(() => {
+  nextTick(() => {
+    try {
+      const done = localStorage.getItem(WELCOME_DONE_KEY)
+      if (!done) welcomeVisible.value = true
+    } catch {
+      welcomeVisible.value = true
+    }
+  })
+})
+
+function onWelcomeDone() {
+  welcomeVisible.value = false
+  try { localStorage.setItem(WELCOME_DONE_KEY, '1') } catch {}
+}
 
 const isMobile = ref(window.innerWidth < 768)
 
@@ -105,8 +140,4 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-/* Mobile history drawer: remove default padding */
-.mobile-history-drawer :deep(.el-drawer__body) {
-  padding: 0;
-}
 </style>

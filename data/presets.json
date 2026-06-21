@@ -205,7 +205,7 @@
   },
   {
     "id": "speech-proofreading",
-    "groupKey": "structural-adjustment",
+    "groupKey": "text-correction",
     "title": "语音文本校对",
     "description": "针对语音识别结果进行标点添加和错别字修正，优化可读性同时保持原意",
     "builtIn": true,

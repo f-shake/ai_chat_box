@@ -1,5 +1,28 @@
 import type { ToolCall, StreamCallbacks } from '@/types'
 
+/**
+ * Convert common HTTP errors to user-friendly Chinese messages
+ */
+function friendlyHttpError(status: number, body: string): string {
+  const lower = body.toLowerCase()
+  if (status === 401 || status === 403) {
+    if (lower.includes('authentication') || lower.includes('auth fail') || lower.includes('api key') || lower.includes('unauthorized')) {
+      return 'AI 服务认证失败，请检查 API Key 是否正确'
+    }
+    return 'AI 服务拒绝访问，请检查 API 密钥或账户余额'
+  }
+  if (status === 404) return 'API 地址不正确，请检查 URL 是否包含 /v1 路径'
+  if (status === 429) return '请求过于频繁，请稍后再试'
+  if (status === 502 || status === 503) return 'AI 服务暂时不可用，请稍后重试'
+  if (status === 400) {
+    if (lower.includes('model')) return '模型名称不正确或不可用，请检查模型设置'
+    if (lower.includes('content')) return '消息内容有误，请检查输入'
+    return `请求参数有误：${body.slice(0, 200)}`
+  }
+  const details = body ? ` — ${body.slice(0, 200)}` : ''
+  return `AI 服务错误 (HTTP ${status})${details}`
+}
+
 export interface ApiServiceOptions {
   apiUrl: string
   apiKey: string
@@ -108,7 +131,8 @@ export async function streamChat(
 
   if (!resp.ok) {
     const errBody = await resp.text().catch(() => '')
-    throw new Error(`HTTP ${resp.status}: ${resp.statusText}${errBody ? ' — ' + errBody.slice(0, 300) : ''}`)
+    let userMsg = friendlyHttpError(resp.status, errBody)
+    throw new Error(userMsg)
   }
 
   const reader = resp.body!.getReader()

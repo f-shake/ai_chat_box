@@ -184,6 +184,8 @@ function handleClearAll() {
   border-top: 1px solid var(--border-color);
   font-size: 11px;
   color: var(--text-tertiary);
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

@@ -8,10 +8,16 @@
     <template v-if="message.role === 'user' || message.role === 'system-prompt'">
       <div class="bubble">
         <div v-if="message.role === 'system-prompt'" class="bubble-label">系统提示词</div>
-        <div v-if="isStreaming && !message.content" class="typing-indicator">
-          <span></span><span></span><span></span>
-        </div>
-        <div v-else-if="renderedHtml" :class="['msg-body', { collapsed: isCollapsed }]" v-html="renderedHtml"></div>
+        <!-- System prompt: hide content entirely when collapsed -->
+        <template v-if="message.role === 'system-prompt' && isCollapsed">
+          <!-- collapsed: only show the label above, no content -->
+        </template>
+        <template v-else>
+          <div v-if="isStreaming && !message.content" class="typing-indicator">
+            <span></span><span></span><span></span>
+          </div>
+          <div v-else-if="renderedHtml" :class="['msg-body', { collapsed: isCollapsed && message.role !== 'system-prompt' }]" v-html="renderedHtml"></div>
+        </template>
 
         <div class="bubble-footer">
           <button v-if="canCollapse" class="collapse-toggle" @click="toggleCollapse">

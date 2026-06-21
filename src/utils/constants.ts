@@ -11,6 +11,7 @@ export const ACTIVE_API_CONFIG_KEY = 'ai_chat_active_api_config'
 export const SEARCH_CONFIG_KEY = 'ai_chat_search_config'
 export const THEME_KEY = 'ai_chat_theme'
 export const SIDEBAR_KEY = 'ai_chat_sidebar'
+export const WELCOME_DONE_KEY = 'ai_chat_welcome_done'
 
 // Limits
 export const MAX_IMAGE_SIZE = 20 * 1024 * 1024 // 20MB
