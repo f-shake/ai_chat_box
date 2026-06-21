@@ -32,6 +32,10 @@ export const DEFAULT_CONFIG_PARAMS = {
   historyLimit: 20,
   reasoningEnabled: false,
   calculatorEnabled: false,
+  timeEnabled: true,
+  randomEnabled: true,
+  uuidEnabled: true,
+  fetchPageEnabled: true,
 }
 
 export const DEFAULT_FORMAT_CONFIG = {

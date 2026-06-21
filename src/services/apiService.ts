@@ -37,6 +37,10 @@ export interface ApiServiceOptions {
   reasoningEnabled: boolean
   searchEnabled: boolean
   calculatorEnabled: boolean
+  timeEnabled: boolean
+  randomEnabled: boolean
+  uuidEnabled: boolean
+  fetchPageEnabled: boolean
 }
 
 export interface StreamResult {
@@ -46,7 +50,7 @@ export interface StreamResult {
   finishReason: string | null
 }
 
-function buildTools(searchEnabled: boolean, calculatorEnabled: boolean) {
+function buildTools(searchEnabled: boolean, calculatorEnabled: boolean, timeEnabled: boolean, randomEnabled: boolean, uuidEnabled: boolean, fetchPageEnabled: boolean) {
   const tools: any[] = []
 
   if (searchEnabled) {
@@ -74,6 +78,71 @@ function buildTools(searchEnabled: boolean, calculatorEnabled: boolean) {
           type: 'object',
           properties: {
             url: { type: 'string', description: '要读取的完整网页地址' },
+          },
+          required: ['url'],
+        },
+      },
+    })
+  }
+
+  if (timeEnabled) {
+    tools.push({
+      type: 'function' as const,
+      function: {
+        name: 'get_current_time',
+        description: '获取当前日期、时间和时区。当用户询问"现在几点""今天几号""当前时间"时使用此工具。',
+        parameters: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+    })
+  }
+  if (randomEnabled) {
+    tools.push({
+      type: 'function' as const,
+      function: {
+        name: 'generate_random',
+        description: '生成随机数或随机字符串。当用户需要随机数、随机密码、随机验证码、抽奖、掷骰子等场景时使用。可指定范围和长度。',
+        parameters: {
+          type: 'object',
+          properties: {
+            min: { type: 'number', description: '随机数最小值（含），默认0', default: 0 },
+            max: { type: 'number', description: '随机数最大值（含），默认100', default: 100 },
+            count: { type: 'number', description: '生成几个，默认1', default: 1 },
+            type: { type: 'string', enum: ['number', 'password', 'hex'], description: '生成类型：number数字、password随机密码、hex十六进制', default: 'number' },
+            length: { type: 'number', description: 'type=password或hex时的长度，默认16', default: 16 },
+          },
+          required: [],
+        },
+      },
+    })
+  }
+  if (uuidEnabled) {
+    tools.push({
+      type: 'function' as const,
+      function: {
+        name: 'generate_uuid',
+        description: '生成一个 UUID v4 唯一标识符。当用户需要唯一ID、标识符时使用此工具。',
+        parameters: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+    })
+  }
+  if (fetchPageEnabled) {
+    tools.push({
+      type: 'function' as const,
+      function: {
+        name: 'fetch_page',
+        description: '直接从前端浏览器获取指定URL的内容（不经过代理）。仅适用于目标服务器允许跨域（CORS）的网站。如果请求失败，可以尝试改用 web_fetch 工具（通过本地代理）。',
+        parameters: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: '要获取的完整网页地址，必须包含 https:// 或 http://' },
           },
           required: ['url'],
         },
@@ -135,9 +204,9 @@ export async function streamChat(
   }
 
   if (searchEnabled) {
-    body.tools = buildTools(options.searchEnabled, options.calculatorEnabled)
-  } else if (options.calculatorEnabled) {
-    body.tools = buildTools(false, options.calculatorEnabled)
+    body.tools = buildTools(options.searchEnabled, options.calculatorEnabled, options.timeEnabled, options.randomEnabled, options.uuidEnabled, options.fetchPageEnabled)
+  } else if (options.calculatorEnabled || options.timeEnabled || options.randomEnabled || options.uuidEnabled || options.fetchPageEnabled) {
+    body.tools = buildTools(false, options.calculatorEnabled, options.timeEnabled, options.randomEnabled, options.uuidEnabled, options.fetchPageEnabled)
   }
 
   const headers: Record<string, string> = {

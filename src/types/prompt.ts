@@ -8,6 +8,10 @@ export interface PromptConfig {
   historyLimit: number
   reasoningEnabled: boolean
   calculatorEnabled: boolean
+  timeEnabled: boolean
+  randomEnabled: boolean
+  uuidEnabled: boolean
+  fetchPageEnabled: boolean
 }
 
 export interface Prompt {

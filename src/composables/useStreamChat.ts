@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 import { useConversationStore } from '@/stores/conversationStore'
+
+const MAX_TOOL_ROUNDS = 5
 import { useConfigStore } from '@/stores/configStore'
 import { useApiConfigStore } from '@/stores/apiConfigStore'
 import { useSearchStore } from '@/stores/searchStore'
@@ -88,7 +90,11 @@ export function useStreamChat() {
     const calcEnabled = configStore.params.calculatorEnabled
 
     // Build unified tools guidance
-    const toolsGuidance: string[] = []
+    const toolsGuidance: string[] = [
+      '- 当用户询问当前日期、时间或时区时，使用 get_current_time 工具获取精确时间。',
+      '- 当用户需要随机数、随机密码、掷骰子或唯一标识符时，使用 generate_random 或 generate_uuid 工具。',
+      '- 当用户需要获取某个网页内容、且目标网站可能支持跨域（CORS）时，优先使用 fetch_page 工具直接获取。如果失败，再尝试 web_fetch（需本地代理）。',
+    ]
     if (searchEnabled) {
       if (isBocha) {
         toolsGuidance.push(
@@ -161,6 +167,7 @@ export function useStreamChat() {
 
     let fullContent = ''
     let fullReasoning = ''
+    const toolRoundCount = { value: 0 }
 
     try {
       const options: ApiServiceOptions = {
@@ -176,6 +183,10 @@ export function useStreamChat() {
         presencePenalty: configStore.params.presencePenalty,
         reasoningEnabled: configStore.params.reasoningEnabled,
         calculatorEnabled: configStore.params.calculatorEnabled,
+        timeEnabled: configStore.params.timeEnabled,
+        randomEnabled: configStore.params.randomEnabled,
+        uuidEnabled: configStore.params.uuidEnabled,
+        fetchPageEnabled: configStore.params.fetchPageEnabled,
         searchEnabled,
       }
 
@@ -195,10 +206,16 @@ export function useStreamChat() {
           },
           onFinish: async (reason: string | null, toolCalls: ToolCall[]) => {
             if (reason === 'tool_calls' && toolCalls.length > 0) {
-              // Execute tools and continue streaming
+              toolRoundCount.value++
+              if (toolRoundCount.value >= MAX_TOOL_ROUNDS) {
+                const msg = conversationStore.currentMessages[streamMsgIdx.value]
+                if (msg && typeof msg.content === 'string') {
+                  msg.content += '\n\n> 工具调用次数过多，已自动停止'
+                }
+                return
+              }
               const results = await executeToolCalls(toolCalls)
-              // Append tool results to messages and continue
-              await streamToolRound(msgsForApi, toolCalls, results, controller, options)
+              await streamToolRound(msgsForApi, toolCalls, results, controller, options, toolRoundCount)
             }
           },
           onError: (error: Error) => {
@@ -236,9 +253,31 @@ export function useStreamChat() {
   async function executeToolCalls(toolCalls: ToolCall[]): Promise<ToolResult[]> {
     const results: ToolResult[] = []
     for (const tc of toolCalls) {
+      const toolNameMap: Record<string, string> = {
+        web_search: '联网搜索',
+        web_fetch: '网页抓取',
+        calculator: '计算器',
+        get_current_time: '时间查询',
+        generate_random: '随机数生成',
+        generate_uuid: 'UUID 生成',
+        fetch_page: '网页抓取',
+      }
+      const displayName = toolNameMap[tc.function.name] || tc.function.name
+
+      // Show pending status
+      const msg = conversationStore.currentMessages[streamMsgIdx.value]
+      const beforeLen = msg?.content ? (typeof msg.content === 'string' ? msg.content.length : 0) : 0
+      if (msg && typeof msg.content === 'string') {
+        msg.content += `\n\n> 正在调用${displayName}...`
+      }
+
+      const replacePending = (resultText: string) => {
+        if (!msg || typeof msg.content !== 'string') return
+        msg.content = msg.content.slice(0, beforeLen) + resultText
+      }
+
       try {
         const args = JSON.parse(tc.function.arguments)
-        const msg = conversationStore.currentMessages[streamMsgIdx.value]
         const isBocha = searchStore.config.provider === 'bocha'
 
         if (tc.function.name === 'web_search') {
@@ -261,9 +300,10 @@ export function useStreamChat() {
             tool_call_id: tc.id,
             content: JSON.stringify(searchResults),
           })
-          if (msg) {
-            const status = `\n\n> 搜索完成（${searchResults.length} 条结果）：${args.query}`
-            msg.content = (msg.content || '') + status
+          if (searchResults.length > 0) {
+            replacePending(`\n\n> 搜索完成（${searchResults.length} 条结果）：${args.query}`)
+          } else {
+            replacePending(`\n\n> 搜索完成，未找到相关结果：${args.query}`)
           }
         } else if (tc.function.name === 'calculator') {
           let result: any
@@ -278,10 +318,72 @@ export function useStreamChat() {
             tool_call_id: tc.id,
             content: JSON.stringify({ result }),
           })
-          if (msg) {
-            const status = `\n\n> 计算结果：${result}`
-            msg.content = (msg.content || '') + status
+          replacePending(`\n\n> 计算结果：${result}`)
+        } else if (tc.function.name === 'get_current_time') {
+          const now = new Date()
+          const result = {
+            datetime: now.toLocaleString('zh-CN', { hour12: false }),
+            date: now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }),
+            time: now.toLocaleTimeString('zh-CN', { hour12: false }),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timestamp: now.getTime(),
+            iso: now.toISOString(),
           }
+          results.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) })
+          replacePending(`\n\n>当前时间：${result.datetime}（${result.timezone}）`)
+
+        } else if (tc.function.name === 'generate_random') {
+          const rMin = typeof args.min === 'number' ? args.min : 0
+          const rMax = typeof args.max === 'number' ? args.max : 100
+          const rCount = typeof args.count === 'number' ? args.count : 1
+          const rType = args.type || 'number'
+          const rLen = typeof args.length === 'number' ? args.length : 16
+          const rResults: string[] = []
+          for (let i = 0; i < rCount; i++) {
+            if (rType === 'password') {
+              const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+              let pwd = ''
+              for (let j = 0; j < rLen; j++) pwd += chars[Math.floor(Math.random() * chars.length)]
+              rResults.push(pwd)
+            } else if (rType === 'hex') {
+              let hex = ''
+              for (let j = 0; j < rLen; j++) hex += Math.floor(Math.random() * 16).toString(16)
+              rResults.push(hex)
+            } else {
+              rResults.push(String(Math.floor(Math.random() * (rMax - rMin + 1)) + rMin))
+            }
+          }
+          const rv = rResults.length === 1 ? rResults[0] : rResults
+          results.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ result: rv }) })
+          replacePending(`\n\n>随机结果：${Array.isArray(rv) ? rv.join(', ') : rv}`)
+
+        } else if (tc.function.name === 'generate_uuid') {
+          const uuid = crypto.randomUUID()
+          results.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ uuid }) })
+          replacePending(`\n\n>生成的 UUID：${uuid}`)
+
+        } else if (tc.function.name === 'fetch_page') {
+          try {
+            const resp = await fetch(args.url, { signal: AbortSignal.timeout(15000) })
+            const text = await resp.text()
+            const cleaned = text
+              .replace(/<script[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[\s\S]*?<\/style>/gi, '')
+              .replace(/<[^>]+>/g, '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 5000)
+            results.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ content: cleaned }) })
+            replacePending(`\n\n>页面已获取（约 ${cleaned.length} 字）：${args.url}`)
+          } catch (e: any) {
+            const feMsg = (e as Error).message || ''
+            const feErr = feMsg === 'Failed to fetch'
+              ? '目标服务器不支持跨域访问（CORS），请尝试改用「联网搜索」中的 web_fetch 工具'
+              : `直接获取失败：${feMsg}`
+            results.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: feErr }) })
+            replacePending(`\n\n>${feErr}`)
+          }
+
         } else if (tc.function.name === 'web_fetch') {
           // web_fetch is only supported for local proxy
           if (isBocha) {
@@ -290,6 +392,7 @@ export function useStreamChat() {
               tool_call_id: tc.id,
               content: JSON.stringify({ error: '博查搜索不支持网页抓取，AI应根据搜索结果直接回答' }),
             })
+            replacePending('\n\n>博查搜索不支持网页抓取')
           } else {
             const content = await searchService.fetchWebpage(
               args.url,
@@ -300,18 +403,24 @@ export function useStreamChat() {
               tool_call_id: tc.id,
               content: JSON.stringify({ content }),
             })
-            if (msg) {
-              const status = `\n\n> 页面已获取（约 ${content.length} 字）：${args.url}`
-              msg.content = (msg.content || '') + status
-            }
+            replacePending(`\n\n>页面已获取（约 ${content.length} 字）：${args.url}`)
           }
         }
       } catch (e: any) {
+        const raw = (e as Error).message || String(e)
+        const toolName = tc.function.name
+        let errMsg = raw
+        if (raw === 'Failed to fetch' || raw.includes('Failed to fetch')) {
+          errMsg = `工具「${toolName}」网络请求失败，请检查网络连接或目标服务器是否可用`
+        } else if (raw.includes('AbortError') || raw.includes('aborted')) {
+          errMsg = `工具「${toolName}」请求超时`
+        }
         results.push({
           role: 'tool',
           tool_call_id: tc.id,
-          content: JSON.stringify({ error: e.message }),
+          content: JSON.stringify({ error: errMsg }),
         })
+        replacePending(`\n\n>${errMsg}`)
       }
     }
     return results
@@ -322,7 +431,8 @@ export function useStreamChat() {
     toolCalls: ToolCall[],
     toolResults: ToolResult[],
     controller: AbortController,
-    options: ApiServiceOptions
+    options: ApiServiceOptions,
+    toolRoundCount: { value: number }
   ) {
     // Build messages with tool calls and results
     const apiCfg = apiConfigStore.activeConfig
@@ -366,8 +476,16 @@ export function useStreamChat() {
           onToolCallChunk: (_i: number, _d: any) => {},
           onFinish: async (reason: string | null, nextToolCalls: ToolCall[]) => {
             if (reason === 'tool_calls' && nextToolCalls.length > 0) {
+              toolRoundCount.value++
+              if (toolRoundCount.value >= MAX_TOOL_ROUNDS) {
+                const msg = conversationStore.currentMessages[streamMsgIdx.value]
+                if (msg && typeof msg.content === 'string') {
+                  msg.content += '\n\n> 工具调用次数过多，已自动停止'
+                }
+                return
+              }
               const results = await executeToolCalls(nextToolCalls)
-              await streamToolRound(msgs, nextToolCalls, results, controller, options)
+              await streamToolRound(msgs, nextToolCalls, results, controller, options, toolRoundCount)
             }
           },
           onError: (error: Error) => {

@@ -5,7 +5,7 @@
       @regenerate="handleRegenerate"
     />
 
-    <ChatInput @send="handleSend" />
+    <ChatInput @send="handleSend" @stop="handleStop" />
   </div>
 </template>
 
@@ -16,10 +16,14 @@ import MessageList from './MessageList.vue'
 import ChatInput from './ChatInput.vue'
 
 const conversationStore = useConversationStore()
-const { sendMessage } = useStreamChat()
+const { sendMessage, stopStream } = useStreamChat()
 
 function handleSend(text?: string) {
   sendMessage(text)
+}
+
+function handleStop() {
+  stopStream()
 }
 
 function handleEdit(idx: number) {

@@ -22,6 +22,22 @@
             <el-switch v-model="calculatorEnabled" size="small" @change="onCalculatorChange" />
             <span class="tools-label">计算器</span>
           </div>
+          <div class="tools-item">
+            <el-switch v-model="timeEnabled" size="small" @change="onTimeChange" />
+            <span class="tools-label">时间日期</span>
+          </div>
+          <div class="tools-item">
+            <el-switch v-model="randomEnabled" size="small" @change="onRandomChange" />
+            <span class="tools-label">随机数</span>
+          </div>
+          <div class="tools-item">
+            <el-switch v-model="uuidEnabled" size="small" @change="onUuidChange" />
+            <span class="tools-label">UUID</span>
+          </div>
+          <div class="tools-item">
+            <el-switch v-model="fetchPageEnabled" size="small" @change="onFetchPageChange" />
+            <span class="tools-label">网页抓取</span>
+          </div>
         </div>
       </template>
     </el-dropdown>
@@ -64,6 +80,10 @@ const { readFileAsContent } = useFileHandler()
 
 const reasoningEnabled = ref(configStore.params.reasoningEnabled)
 const calculatorEnabled = ref(configStore.params.calculatorEnabled)
+const timeEnabled = ref(configStore.params.timeEnabled)
+const randomEnabled = ref(configStore.params.randomEnabled)
+const uuidEnabled = ref(configStore.params.uuidEnabled)
+const fetchPageEnabled = ref(configStore.params.fetchPageEnabled)
 const searchEnabled = ref(searchStore.config.enabled)
 
 const acceptTypes = '.txt,.md,.csv,.json,.xml,.js,.py,.html,.css,.yaml,.yml,.toml,.docx,image/*'
@@ -74,6 +94,18 @@ watch(() => configStore.params.reasoningEnabled, (val) => {
 
 watch(() => configStore.params.calculatorEnabled, (val) => {
   calculatorEnabled.value = val
+})
+watch(() => configStore.params.timeEnabled, (val) => {
+  timeEnabled.value = val
+})
+watch(() => configStore.params.randomEnabled, (val) => {
+  randomEnabled.value = val
+})
+watch(() => configStore.params.uuidEnabled, (val) => {
+  uuidEnabled.value = val
+})
+watch(() => configStore.params.fetchPageEnabled, (val) => {
+  fetchPageEnabled.value = val
 })
 
 watch(() => searchStore.config.enabled, (val) => {
@@ -88,6 +120,26 @@ function onReasoningChange(val: string | number | boolean) {
 
 function onCalculatorChange(val: string | number | boolean) {
   configStore.params.calculatorEnabled = Boolean(val)
+  configStore.saveParams()
+}
+
+function onTimeChange(val: string | number | boolean) {
+  configStore.params.timeEnabled = Boolean(val)
+  configStore.saveParams()
+}
+
+function onRandomChange(val: string | number | boolean) {
+  configStore.params.randomEnabled = Boolean(val)
+  configStore.saveParams()
+}
+
+function onUuidChange(val: string | number | boolean) {
+  configStore.params.uuidEnabled = Boolean(val)
+  configStore.saveParams()
+}
+
+function onFetchPageChange(val: string | number | boolean) {
+  configStore.params.fetchPageEnabled = Boolean(val)
   configStore.saveParams()
 }
 

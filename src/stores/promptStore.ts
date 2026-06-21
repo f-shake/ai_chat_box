@@ -42,6 +42,10 @@ export const usePromptStore = defineStore('prompt', () => {
         historyLimit: p.config?.historyLimit ?? DEFAULT_CONFIG_PARAMS.historyLimit,
         reasoningEnabled: p.config?.reasoningEnabled ?? DEFAULT_CONFIG_PARAMS.reasoningEnabled,
         calculatorEnabled: p.config?.calculatorEnabled ?? DEFAULT_CONFIG_PARAMS.calculatorEnabled,
+        timeEnabled: p.config?.timeEnabled ?? DEFAULT_CONFIG_PARAMS.timeEnabled,
+        randomEnabled: p.config?.randomEnabled ?? DEFAULT_CONFIG_PARAMS.randomEnabled,
+        uuidEnabled: p.config?.uuidEnabled ?? DEFAULT_CONFIG_PARAMS.uuidEnabled,
+        fetchPageEnabled: p.config?.fetchPageEnabled ?? DEFAULT_CONFIG_PARAMS.fetchPageEnabled,
       }
 
       items.push({

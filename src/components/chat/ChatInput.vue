@@ -30,21 +30,23 @@
       />
 
       <el-button
-        v-if="!isStreaming"
+        v-if="!conversationStore.isStreaming"
         type="primary"
         :disabled="disabled || (!inputText.trim() && conversationStore.pendingFiles.length === 0)"
         @click="doSend"
         title="发送 (Enter)"
+        style="width: 40px;"
       >
-        <el-icon><Promotion /></el-icon>
+        <el-icon :size="18"><Promotion /></el-icon>
       </el-button>
       <el-button
         v-else
         type="danger"
-        @click="stopStream"
+        @click="emit('stop')"
         title="停止生成"
+        style="width: 40px;"
       >
-        <el-icon><VideoPause /></el-icon>
+        <el-icon :size="18"><Close /></el-icon>
       </el-button>
     </div>
   </div>
@@ -58,17 +60,18 @@ import { useStreamChat } from '@/composables/useStreamChat'
 import { useFileHandler } from '@/composables/useFileHandler'
 import { DEFAULT_CONFIG_PARAMS } from '@/utils/constants'
 import { ElInput } from 'element-plus'
-import { Plus, Promotion, VideoPause } from '@element-plus/icons-vue'
+import { Plus, Promotion, Close } from '@element-plus/icons-vue'
 import ChatInputOptions from './ChatInputOptions.vue'
 import FilePreviewStrip from './FilePreviewStrip.vue'
 
 const emit = defineEmits<{
   send: [text?: string]
+  stop: []
 }>()
 
 const conversationStore = useConversationStore()
 const configStore = useConfigStore()
-const { sendMessage, stopStream, isStreaming } = useStreamChat()
+const { sendMessage } = useStreamChat()
 
 const inputRef = ref<InstanceType<typeof ElInput> | null>(null)
 const inputText = ref('')
@@ -89,7 +92,7 @@ const disabled = computed(() => {
 function doSend() {
   const text = inputText.value.trim()
   if (!text && conversationStore.pendingFiles.length === 0) return
-  if (isStreaming.value) return
+  if (conversationStore.isStreaming) return
 
   emit('send', text || undefined)
   inputText.value = ''
@@ -135,9 +138,6 @@ async function newConversation() {
   await conversationStore.newConversation()
 }
 
-function stopStreaming() {
-  stopStream()
-}
 </script>
 
 <style scoped>

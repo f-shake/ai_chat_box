@@ -10,7 +10,7 @@
       <el-tab-pane label="预设" name="prompts">
         <PromptsPanel />
       </el-tab-pane>
-      <el-tab-pane label="搜索" name="search">
+      <el-tab-pane label="工具" name="search">
         <SearchPanel />
       </el-tab-pane>
       <el-tab-pane label="格式" name="format">
