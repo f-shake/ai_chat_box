@@ -7,7 +7,7 @@ import type { SearchConfig, SearchProvider } from '@/types'
 export const useSearchStore = defineStore('search', () => {
   const config = ref<SearchConfig>({
     provider: 'local',
-    enabled: false,
+    enabled: true,
     proxyUrl: 'http://localhost:3456',
     bochaApiKey: '',
   })

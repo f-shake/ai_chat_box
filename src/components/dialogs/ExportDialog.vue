@@ -4,6 +4,7 @@
       <el-checkbox v-model="exportPrompts">预设提示词</el-checkbox>
       <el-checkbox v-model="exportApiConfigs">API 配置</el-checkbox>
       <el-checkbox v-model="exportConversations">对话记录</el-checkbox>
+      <el-checkbox v-model="exportConfig">参数与工具配置</el-checkbox>
     </div>
     <el-divider />
     <div class="export-section">
@@ -25,6 +26,8 @@ import { ref, computed, watch } from 'vue'
 import { usePromptStore } from '@/stores/promptStore'
 import { useApiConfigStore } from '@/stores/apiConfigStore'
 import { useConversationStore } from '@/stores/conversationStore'
+import { useConfigStore } from '@/stores/configStore'
+import { useSearchStore } from '@/stores/searchStore'
 
 const props = defineProps<{
   modelValue: boolean
@@ -37,6 +40,8 @@ const emit = defineEmits<{
 const promptStore = usePromptStore()
 const apiConfigStore = useApiConfigStore()
 const conversationStore = useConversationStore()
+const configStore = useConfigStore()
+const searchStore = useSearchStore()
 
 const visible = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { visible.value = v })
@@ -45,9 +50,10 @@ watch(visible, (v) => emit('update:modelValue', v))
 const exportPrompts = ref(true)
 const exportApiConfigs = ref(true)
 const exportConversations = ref(false)
+const exportConfig = ref(false)
 const exportFormat = ref('json')
 
-const hasSelection = computed(() => exportPrompts.value || exportApiConfigs.value || exportConversations.value)
+const hasSelection = computed(() => exportPrompts.value || exportApiConfigs.value || exportConversations.value || exportConfig.value)
 
 function doExport() {
   const data: Record<string, any> = {
@@ -65,6 +71,11 @@ function doExport() {
     }
     if (exportConversations.value) {
       data.conversations = conversationStore.conversations
+    }
+    if (exportConfig.value) {
+      data.params = { ...configStore.params }
+      data.searchConfig = { ...searchStore.config }
+      data.format = { ...configStore.format }
     }
     downloadJSON(data, 'ai-chat-export.json')
   } else {

@@ -25,6 +25,9 @@
         <div v-if="importedData.conversations" class="stat-item">
           <el-checkbox v-model="importConversations">对话记录 ({{ importedData.conversations.length }} 个)</el-checkbox>
         </div>
+        <div v-if="importedData.params" class="stat-item">
+          <el-checkbox v-model="importConfig">参数与工具配置</el-checkbox>
+        </div>
       </div>
       <el-alert type="warning" :closable="false" show-icon>
         导入将合并所选数据。相同 ID 的对话和配置将被覆盖。
@@ -37,7 +40,7 @@
         v-if="importedData"
         type="primary"
         @click="doImport"
-        :disabled="!importPrompts && !importApiConfigs && !importConversations"
+        :disabled="!importPrompts && !importApiConfigs && !importConversations && !importConfig"
       >
         导入
       </el-button>
@@ -50,6 +53,8 @@ import { ref, watch } from 'vue'
 import { usePromptStore } from '@/stores/promptStore'
 import { useApiConfigStore } from '@/stores/apiConfigStore'
 import { useConversationStore } from '@/stores/conversationStore'
+import { useConfigStore } from '@/stores/configStore'
+import { useSearchStore } from '@/stores/searchStore'
 import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
 
@@ -64,6 +69,8 @@ const emit = defineEmits<{
 const promptStore = usePromptStore()
 const apiConfigStore = useApiConfigStore()
 const conversationStore = useConversationStore()
+const configStore = useConfigStore()
+const searchStore = useSearchStore()
 
 const visible = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { visible.value = v })
@@ -77,6 +84,7 @@ const importedData = ref<any>(null)
 const importPrompts = ref(true)
 const importApiConfigs = ref(true)
 const importConversations = ref(true)
+const importConfig = ref(true)
 
 function handleFileChange(uploadFile: UploadFile) {
   if (!uploadFile.raw) return
@@ -128,6 +136,20 @@ async function doImport() {
       }
     }
     await conversationStore.saveConversations()
+  }
+
+  if (importConfig.value && importedData.value.params) {
+    Object.assign(configStore.params, importedData.value.params)
+    await configStore.saveParams()
+  }
+  if (importConfig.value && importedData.value.searchConfig) {
+    Object.assign(searchStore.config, importedData.value.searchConfig)
+    await searchStore.save()
+  }
+  if (importConfig.value && importedData.value.format) {
+    Object.assign(configStore.format, importedData.value.format)
+    configStore.applyFormatToCSS()
+    await configStore.saveFormat()
   }
 
   await promptStore.saveAll()

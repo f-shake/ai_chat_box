@@ -6,6 +6,10 @@
       <el-checkbox v-model="shareName">服务名称</el-checkbox>
       <el-checkbox v-model="shareKey">API Key</el-checkbox>
       <el-checkbox v-model="sharePrompt">系统提示词</el-checkbox>
+      <el-divider />
+      <div class="share-section-label">工具与参数</div>
+      <el-checkbox v-model="shareParams">参数配置（Temperature / 工具开关等）</el-checkbox>
+      <el-checkbox v-model="shareSearch">联网搜索配置</el-checkbox>
     </div>
 
     <el-divider />
@@ -28,6 +32,7 @@
 import { ref, watch } from 'vue'
 import { useApiConfigStore } from '@/stores/apiConfigStore'
 import { useConfigStore } from '@/stores/configStore'
+import { useSearchStore } from '@/stores/searchStore'
 import { encryptShareData } from '@/composables/useEncryptedShare'
 import type { ShareData } from '@/composables/useEncryptedShare'
 
@@ -41,6 +46,7 @@ const emit = defineEmits<{
 
 const apiConfigStore = useApiConfigStore()
 const configStore = useConfigStore()
+const searchStore = useSearchStore()
 
 const visible = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { visible.value = v })
@@ -55,6 +61,8 @@ const shareModel = ref(true)
 const shareName = ref(false)
 const shareKey = ref(false)
 const sharePrompt = ref(false)
+const shareParams = ref(false)
+const shareSearch = ref(false)
 const generating = ref(false)
 const shareResult = ref('')
 
@@ -73,6 +81,8 @@ async function generateShare() {
     if (shareName.value) data.name = active.name
     if (shareKey.value) data.key = active.apiKey
     if (sharePrompt.value) data.prompt = configStore.params.systemPrompt
+    if (shareParams.value) data.params = { ...configStore.params }
+    if (shareSearch.value) data.searchConfig = { ...searchStore.config }
 
     const encoded = await encryptShareData(data)
     const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`

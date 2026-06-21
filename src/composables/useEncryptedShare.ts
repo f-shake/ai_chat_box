@@ -9,6 +9,8 @@ export interface ShareData {
   name?: string
   key?: string
   prompt?: string
+  params?: Record<string, any>
+  searchConfig?: Record<string, any>
 }
 
 async function deriveKey(): Promise<CryptoKey> {

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { useConversationStore } from '@/stores/conversationStore'
 
-const MAX_TOOL_ROUNDS = 5
+const MAX_CONSECUTIVE_FAILURES = 5
 import { useConfigStore } from '@/stores/configStore'
 import { useApiConfigStore } from '@/stores/apiConfigStore'
 import { useSearchStore } from '@/stores/searchStore'
@@ -167,7 +167,7 @@ export function useStreamChat() {
 
     let fullContent = ''
     let fullReasoning = ''
-    const toolRoundCount = { value: 0 }
+    const consecutiveFailCount = { value: 0 }
 
     try {
       const options: ApiServiceOptions = {
@@ -206,16 +206,21 @@ export function useStreamChat() {
           },
           onFinish: async (reason: string | null, toolCalls: ToolCall[]) => {
             if (reason === 'tool_calls' && toolCalls.length > 0) {
-              toolRoundCount.value++
-              if (toolRoundCount.value >= MAX_TOOL_ROUNDS) {
+              const results = await executeToolCalls(toolCalls)
+              const hasFailure = hasToolErrors(results)
+              if (hasFailure) {
+                consecutiveFailCount.value++
+              } else {
+                consecutiveFailCount.value = 0
+              }
+              if (consecutiveFailCount.value >= MAX_CONSECUTIVE_FAILURES) {
                 const msg = conversationStore.currentMessages[streamMsgIdx.value]
                 if (msg && typeof msg.content === 'string') {
-                  msg.content += '\n\n> 工具调用次数过多，已自动停止'
+                  msg.content += '\n\n> 工具连续多次失败，已自动停止'
                 }
                 return
               }
-              const results = await executeToolCalls(toolCalls)
-              await streamToolRound(msgsForApi, toolCalls, results, controller, options, toolRoundCount)
+              await streamToolRound(msgsForApi, toolCalls, results, controller, options, consecutiveFailCount)
             }
           },
           onError: (error: Error) => {
@@ -432,7 +437,7 @@ export function useStreamChat() {
     toolResults: ToolResult[],
     controller: AbortController,
     options: ApiServiceOptions,
-    toolRoundCount: { value: number }
+    consecutiveFailCount: { value: number }
   ) {
     // Build messages with tool calls and results
     const apiCfg = apiConfigStore.activeConfig
@@ -476,16 +481,21 @@ export function useStreamChat() {
           onToolCallChunk: (_i: number, _d: any) => {},
           onFinish: async (reason: string | null, nextToolCalls: ToolCall[]) => {
             if (reason === 'tool_calls' && nextToolCalls.length > 0) {
-              toolRoundCount.value++
-              if (toolRoundCount.value >= MAX_TOOL_ROUNDS) {
+              const results = await executeToolCalls(nextToolCalls)
+              const hasFailure = hasToolErrors(results)
+              if (hasFailure) {
+                consecutiveFailCount.value++
+              } else {
+                consecutiveFailCount.value = 0
+              }
+              if (consecutiveFailCount.value >= MAX_CONSECUTIVE_FAILURES) {
                 const msg = conversationStore.currentMessages[streamMsgIdx.value]
                 if (msg && typeof msg.content === 'string') {
-                  msg.content += '\n\n> 工具调用次数过多，已自动停止'
+                  msg.content += '\n\n> 工具连续多次失败，已自动停止'
                 }
                 return
               }
-              const results = await executeToolCalls(nextToolCalls)
-              await streamToolRound(msgs, nextToolCalls, results, controller, options, toolRoundCount)
+              await streamToolRound(msgs, nextToolCalls, results, controller, options, consecutiveFailCount)
             }
           },
           onError: (error: Error) => {
@@ -536,6 +546,17 @@ export function useStreamChat() {
       abortController.value.abort()
       abortController.value = null
     }
+  }
+
+  function hasToolErrors(results: ToolResult[]): boolean {
+    return results.some((r) => {
+      try {
+        const parsed = JSON.parse(r.content)
+        return !!parsed.error
+      } catch {
+        return false
+      }
+    })
   }
 
   return {
