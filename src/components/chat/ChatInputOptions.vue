@@ -65,10 +65,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useConfigStore } from '@/stores/configStore'
 import { useSearchStore } from '@/stores/searchStore'
+import { usePromptStore } from '@/stores/promptStore'
 import { useFileHandler } from '@/composables/useFileHandler'
 import { Close, Upload, Tools, ArrowDown } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
@@ -76,9 +77,12 @@ import type { UploadFile } from 'element-plus'
 const conversationStore = useConversationStore()
 const configStore = useConfigStore()
 const searchStore = useSearchStore()
+const promptStore = usePromptStore()
 const { readFileAsContent } = useFileHandler()
 
-const reasoningEnabled = ref(configStore.params.reasoningEnabled)
+// Use conversation snapshot for param values, fall back to active preset
+const convCfg = computed(() => conversationStore.activeConversation?.snapshot?.config || configStore.activeConfig)
+const reasoningEnabled = ref(convCfg.value.reasoningEnabled)
 const calculatorEnabled = ref(configStore.params.calculatorEnabled)
 const timeEnabled = ref(configStore.params.timeEnabled)
 const randomEnabled = ref(configStore.params.randomEnabled)
@@ -88,7 +92,7 @@ const searchEnabled = ref(searchStore.config.enabled)
 
 const acceptTypes = '.txt,.md,.csv,.json,.xml,.js,.py,.html,.css,.yaml,.yml,.toml,.docx,image/*'
 
-watch(() => configStore.params.reasoningEnabled, (val) => {
+watch(() => convCfg.value.reasoningEnabled, (val) => {
   reasoningEnabled.value = val
 })
 
@@ -114,8 +118,20 @@ watch(() => searchStore.config.enabled, (val) => {
 
 function onReasoningChange(val: string | number | boolean) {
   const v = Boolean(val)
-  configStore.params.reasoningEnabled = v
-  configStore.saveParams()
+  // If conversation has a snapshot, update it in-place
+  const conv = conversationStore.activeConversation
+  if (conv?.snapshot) {
+    conv.snapshot.config.reasoningEnabled = v
+    conversationStore.saveCurrentConversation()
+    return
+  }
+  // Otherwise update the active preset
+  const id = configStore.activePresetId
+  if (id) {
+    promptStore.editPrompt(id, {
+      config: { ...convCfg.value, reasoningEnabled: v },
+    })
+  }
 }
 
 function onCalculatorChange(val: string | number | boolean) {

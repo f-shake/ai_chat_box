@@ -91,7 +91,7 @@ watch(() => conversationStore.editingMsgIdx, (idx) => {
 const isNewConvRedundant = computed(() => {
   if (!conversationStore.activeConvId) return false
   if (conversationStore.currentMessages.length > 0) return false
-  if (configStore.params.systemPrompt !== DEFAULT_CONFIG_PARAMS.systemPrompt) return false
+  if (configStore.activeConfig.systemPrompt) return false
   return true
 })
 
@@ -153,7 +153,7 @@ async function newConversation() {
 
 <style scoped>
 .chat-input-area {
-  padding: 8px 16px 12px;
+  padding: 2px 8px 4px;
   border-top: 1px solid var(--border-color);
   background: var(--bg-primary);
 }
@@ -174,7 +174,9 @@ async function newConversation() {
 }
 
 .chat-textarea :deep(.el-textarea__inner) {
-  min-height: 40px;
+  min-height: 32px !important;
+  padding: 4px 8px !important;
+  line-height: 1.4 !important;
   border-radius: 8px;
   resize: none;
 }

@@ -1,9 +1,9 @@
 <template>
   <div class="prompts-panel">
     <div class="panel-header">
-      <el-button type="primary" @click="openAddDialog">+ 新增预设</el-button>
-      <el-button @click="openGroupManager">分组</el-button>
       <el-button @click="resetAll">重置</el-button>
+      <el-button @click="openGroupManager">分组</el-button>
+      <el-button type="primary" @click="openAddDialog">新增</el-button>
     </div>
 
     <div class="panel-search">
@@ -26,18 +26,18 @@
               </div>
             </template>
             <div class="prompt-group-content">
-              <div v-for="p in prompts" :key="p.id" class="prompt-item">
-                <div class="prompt-item-header">
+              <div v-for="p in prompts" :key="p.id" :class="['prompt-item', { active: configStore.activePresetId === p.id }]">
+                <div class="prompt-item-header" @click="activate(p.id)">
                   <span class="prompt-title">{{ p.title }}</span>
-                  <el-tag v-if="p.builtIn" size="small" type="info" effect="plain">内置</el-tag>
+                  <el-tag v-if="configStore.activePresetId === p.id" size="small" type="success" effect="light">当前</el-tag>
+                  <el-tag v-else-if="p.builtIn" size="small" type="info" effect="plain">内置</el-tag>
                 </div>
                 <div v-if="p.description" class="prompt-desc">{{ p.description }}</div>
                 <div class="prompt-chips">
-                  <el-tag size="small" v-if="p.config.systemPrompt">提示词</el-tag>
                   <el-tag size="small" v-if="p.config.temperature !== 0.7" type="warning">T={{ p.config.temperature }}</el-tag>
                 </div>
                 <div class="prompt-actions">
-                  <el-button type="primary" size="small" @click="apply(p.id)">应用</el-button>
+                  <el-button type="primary" size="small" @click="activate(p.id)" :disabled="configStore.activePresetId === p.id">应用</el-button>
                   <el-button text size="small" @click="editPrompt(p.id)">编辑</el-button>
                   <el-button text size="small" type="danger" @click="deletePrompt(p.id)">删除</el-button>
                 </div>
@@ -59,7 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { usePromptStore } from '@/stores/promptStore'
 import { useConfigStore } from '@/stores/configStore'
 import { useConversationStore } from '@/stores/conversationStore'
@@ -71,6 +72,8 @@ const promptStore = usePromptStore()
 const configStore = useConfigStore()
 const conversationStore = useConversationStore()
 const uiStore = useUiStore()
+
+// active id is read directly from configStore.activePresetId in template
 
 const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
@@ -97,15 +100,29 @@ function deletePrompt(id: string) {
   }).catch(() => {})
 }
 
-async function apply(id: string) {
+async function activate(id: string) {
   const p = promptStore.applyPrompt(id)
-  if (p) {
-    await conversationStore.newConversation()
-    Object.assign(configStore.params, p.config)
-    configStore.saveParams()
-    uiStore.closeSettings()
-    ElMessage.success(`已新建对话，应用了「${p.title}」`)
+  if (!p) return
+  await configStore.setActivePresetKey(id)
+
+  // Update snapshot on current conversation
+  const conv = conversationStore.activeConversation
+  if (conv) {
+    conv.snapshot = {
+      presetName: p.title || '',
+      config: { ...configStore.activeConfig },
+    }
+    conversationStore.saveCurrentConversation()
   }
+
+  // If current conversation has messages, start a new one
+  const msgs = conversationStore.currentMessages
+  if (msgs.length > 0) {
+    await conversationStore.newConversation()
+  }
+
+  uiStore.closeSettings()
+  ElMessage.success(`已切换至「${p.title}」`)
 }
 
 function resetAll() {
@@ -138,6 +155,7 @@ function onSaved() {
 
 .panel-header {
   display: flex;
+  justify-content: flex-end;
   gap: 6px;
   flex-wrap: wrap;
 }

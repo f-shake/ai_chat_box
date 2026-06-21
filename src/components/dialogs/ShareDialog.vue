@@ -5,11 +5,8 @@
       <el-checkbox v-model="shareModel">模型名称</el-checkbox>
       <el-checkbox v-model="shareName">服务名称</el-checkbox>
       <el-checkbox v-model="shareKey">API Key</el-checkbox>
-      <el-checkbox v-model="sharePrompt">系统提示词</el-checkbox>
       <el-divider />
-      <div class="share-section-label">工具与参数</div>
-      <el-checkbox v-model="shareParams">参数配置（Temperature / 工具开关等）</el-checkbox>
-      <el-checkbox v-model="shareSearch">联网搜索配置</el-checkbox>
+      <el-checkbox v-model="shareTools">工具（参数 + 工具开关 + 搜索配置）</el-checkbox>
     </div>
 
     <el-divider />
@@ -60,9 +57,7 @@ const shareUrl = ref(true)
 const shareModel = ref(true)
 const shareName = ref(false)
 const shareKey = ref(false)
-const sharePrompt = ref(false)
-const shareParams = ref(false)
-const shareSearch = ref(false)
+const shareTools = ref(false)
 const generating = ref(false)
 const shareResult = ref('')
 
@@ -80,9 +75,14 @@ async function generateShare() {
     if (shareModel.value) data.model = active.model
     if (shareName.value) data.name = active.name
     if (shareKey.value) data.key = active.apiKey
-    if (sharePrompt.value) data.prompt = configStore.params.systemPrompt
-    if (shareParams.value) data.params = { ...configStore.params }
-    if (shareSearch.value) data.searchConfig = { ...searchStore.config }
+    if (shareTools.value) {
+      data.tools = {
+        presetId: configStore.activePresetId,
+        presetConfig: { ...configStore.activeConfig },
+        toolToggles: { ...configStore.params },
+        searchConfig: { ...searchStore.config },
+      }
+    }
 
     const encoded = await encryptShareData(data)
     const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`

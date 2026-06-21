@@ -16,8 +16,8 @@
     <div v-else class="import-preview">
       <h4>预览导入内容：</h4>
       <div class="import-stats">
-        <div v-if="importedData.prompts" class="stat-item">
-          <el-checkbox v-model="importPrompts">预设提示词 ({{ importedData.prompts.length }} 个)</el-checkbox>
+        <div v-if="importedData.presets" class="stat-item">
+          <el-checkbox v-model="importPresets">参数配置 ({{ importedData.presets.length }} 个)</el-checkbox>
         </div>
         <div v-if="importedData.apiConfigs" class="stat-item">
           <el-checkbox v-model="importApiConfigs">API 配置 ({{ importedData.apiConfigs.length }} 个)</el-checkbox>
@@ -26,7 +26,7 @@
           <el-checkbox v-model="importConversations">对话记录 ({{ importedData.conversations.length }} 个)</el-checkbox>
         </div>
         <div v-if="importedData.params" class="stat-item">
-          <el-checkbox v-model="importConfig">参数与工具配置</el-checkbox>
+          <el-checkbox v-model="importConfig">工具与搜索配置</el-checkbox>
         </div>
       </div>
       <el-alert type="warning" :closable="false" show-icon>
@@ -40,7 +40,7 @@
         v-if="importedData"
         type="primary"
         @click="doImport"
-        :disabled="!importPrompts && !importApiConfigs && !importConversations && !importConfig"
+        :disabled="!importPresets && !importApiConfigs && !importConversations && !importConfig"
       >
         导入
       </el-button>
@@ -81,7 +81,7 @@ watch(visible, (v) => {
 })
 
 const importedData = ref<any>(null)
-const importPrompts = ref(true)
+const importPresets = ref(true)
 const importApiConfigs = ref(true)
 const importConversations = ref(true)
 const importConfig = ref(true)
@@ -102,14 +102,19 @@ function handleFileChange(uploadFile: UploadFile) {
 async function doImport() {
   if (!importedData.value) return
 
-  if (importPrompts.value && importedData.value.prompts) {
-    // Merge prompts
-    for (const p of importedData.value.prompts) {
-      const existing = promptStore.userPrompts.findIndex((up) => up.id === p.id)
-      if (existing >= 0) {
-        promptStore.userPrompts[existing] = p
-      } else {
-        promptStore.userPrompts.push(p)
+  if (importPresets.value && importedData.value.presets) {
+    // Merge presets (overwrite by ID)
+    for (const p of importedData.value.presets) {
+      // Match against both user and preset prompts
+      const userIdx = promptStore.userPrompts.findIndex((up) => up.id === p.id)
+      if (userIdx >= 0) {
+        promptStore.userPrompts[userIdx] = p
+        continue
+      }
+      // Check if there's a user override for this built-in preset
+      const hasOverride = promptStore.userPrompts.some((up) => up.presetRef === p.id)
+      if (!hasOverride) {
+        promptStore.userPrompts.push({ ...p, builtIn: false })
       }
     }
   }
@@ -138,9 +143,20 @@ async function doImport() {
     await conversationStore.saveConversations()
   }
 
+  // Save imported presets and restore activePresetId
+  if (importPresets.value && importedData.value.presets) {
+    await promptStore.saveAll()
+    if (importedData.value.activePresetId) {
+      await configStore.setActivePresetKey(importedData.value.activePresetId)
+    }
+  }
+
   if (importConfig.value && importedData.value.params) {
     Object.assign(configStore.params, importedData.value.params)
     await configStore.saveParams()
+  }
+  if (importConfig.value && importedData.value.activePresetId) {
+    await configStore.setActivePresetKey(importedData.value.activePresetId)
   }
   if (importConfig.value && importedData.value.searchConfig) {
     Object.assign(searchStore.config, importedData.value.searchConfig)
@@ -152,7 +168,9 @@ async function doImport() {
     await configStore.saveFormat()
   }
 
-  await promptStore.saveAll()
+  if (!importPresets.value) {
+    await promptStore.saveAll()
+  }
   visible.value = false
   ElMessage.success('导入成功')
 }

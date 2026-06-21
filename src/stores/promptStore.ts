@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as db from '@/services/dbService'
-import { PROMPTS_KEY, GROUPS_KEY, HIDDEN_PROMPTS_KEY, DEFAULT_CONFIG_PARAMS } from '@/utils/constants'
+import { PROMPTS_KEY, GROUPS_KEY, HIDDEN_PROMPTS_KEY } from '@/utils/constants'
 import type { Prompt, PromptGroup, PromptConfig } from '@/types'
 import { genId } from '@/utils/id'
 
@@ -34,18 +34,13 @@ export const usePromptStore = defineStore('prompt', () => {
     for (const p of list) {
       const cfg: PromptConfig = {
         systemPrompt: p.config?.systemPrompt || p.content || '',
-        temperature: p.config?.temperature ?? DEFAULT_CONFIG_PARAMS.temperature,
-        maxTokens: p.config?.maxTokens ?? DEFAULT_CONFIG_PARAMS.maxTokens,
-        topP: p.config?.topP ?? DEFAULT_CONFIG_PARAMS.topP,
-        frequencyPenalty: p.config?.frequencyPenalty ?? DEFAULT_CONFIG_PARAMS.frequencyPenalty,
-        presencePenalty: p.config?.presencePenalty ?? DEFAULT_CONFIG_PARAMS.presencePenalty,
-        historyLimit: p.config?.historyLimit ?? DEFAULT_CONFIG_PARAMS.historyLimit,
-        reasoningEnabled: p.config?.reasoningEnabled ?? DEFAULT_CONFIG_PARAMS.reasoningEnabled,
-        calculatorEnabled: p.config?.calculatorEnabled ?? DEFAULT_CONFIG_PARAMS.calculatorEnabled,
-        timeEnabled: p.config?.timeEnabled ?? DEFAULT_CONFIG_PARAMS.timeEnabled,
-        randomEnabled: p.config?.randomEnabled ?? DEFAULT_CONFIG_PARAMS.randomEnabled,
-        uuidEnabled: p.config?.uuidEnabled ?? DEFAULT_CONFIG_PARAMS.uuidEnabled,
-        fetchPageEnabled: p.config?.fetchPageEnabled ?? DEFAULT_CONFIG_PARAMS.fetchPageEnabled,
+        temperature: p.config?.temperature ?? 0.7,
+        maxTokens: p.config?.maxTokens ?? 0,
+        topP: p.config?.topP ?? 1.0,
+        frequencyPenalty: p.config?.frequencyPenalty ?? 0,
+        presencePenalty: p.config?.presencePenalty ?? 0,
+        historyLimit: p.config?.historyLimit ?? 20,
+        reasoningEnabled: p.config?.reasoningEnabled ?? false,
       }
 
       items.push({
@@ -117,10 +112,11 @@ export const usePromptStore = defineStore('prompt', () => {
       presetMap.set(p.presetRef || p.id, { ...p })
     }
 
-    // Apply user overrides
+    // Apply user overrides (preserve original presetRef as id for activePresetId lookup)
     for (const up of userPrompts.value) {
       if (up.presetRef && presetMap.has(up.presetRef)) {
-        presetMap.set(up.presetRef, { ...presetMap.get(up.presetRef)!, ...up })
+        const base = presetMap.get(up.presetRef)!
+        presetMap.set(up.presetRef, { ...base, ...up, id: base.id })
       } else {
         presetMap.set(up.id, up)
       }
@@ -171,7 +167,17 @@ export const usePromptStore = defineStore('prompt', () => {
       title: p.title || '新预设',
       description: p.description || '',
       builtIn: false,
-      config: { ...DEFAULT_CONFIG_PARAMS, ...p.config },
+      config: {
+        systemPrompt: '',
+        temperature: 0.7,
+        maxTokens: 0,
+        topP: 1.0,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
+        historyLimit: 20,
+        reasoningEnabled: false,
+        ...p.config,
+      },
       presetRef: p.presetRef,
     }
     userPrompts.value.push(prompt)

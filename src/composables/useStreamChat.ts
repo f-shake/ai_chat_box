@@ -34,7 +34,7 @@ export function useStreamChat() {
     // Determine user content
     let userContent: any
     const hasFiles = conversationStore.pendingFiles.length > 0
-    const text = userText !== undefined ? userText : configStore.params.systemPrompt // just placeholder
+    const text = userText !== undefined ? userText : configStore.activeConfig.systemPrompt // just placeholder
 
     // Read from textarea or use passed text
     const trimmed = (userText !== undefined ? userText : '').trim()
@@ -82,8 +82,11 @@ export function useStreamChat() {
     conversationStore.pushAssistantMessage()
     streamMsgIdx.value = mIdx
 
+    // Use conversation snapshot params if available, else active preset
+    const convCfg = conversationStore.activeConversation?.snapshot?.config || configStore.activeConfig
+
     // Build system prompt with search guidance
-    const sys = replacePromptPlaceholders(configStore.params.systemPrompt)
+    const sys = replacePromptPlaceholders(configStore.activeConfig.systemPrompt)
     const isBocha = searchStore.config.provider === 'bocha'
     const hasSearchConfig = isBocha ? searchStore.config.bochaApiKey : searchStore.config.proxyUrl
     const searchEnabled = searchStore.config.enabled && !!hasSearchConfig
@@ -123,7 +126,7 @@ export function useStreamChat() {
     }
 
     // Build API messages
-    const historyLimit = configStore.params.historyLimit || 20
+    const historyLimit = convCfg.historyLimit || 20
     const msgsForApi: Array<{ role: string; content: any; tool_calls?: ToolCall[]; tool_call_id?: string }> = []
 
     if (sys) {
@@ -176,12 +179,12 @@ export function useStreamChat() {
         model: apiCfg.model,
         systemPrompt: sys,
         messages: msgsForApi,
-        temperature: configStore.params.temperature,
-        maxTokens: configStore.params.maxTokens,
-        topP: configStore.params.topP,
-        frequencyPenalty: configStore.params.frequencyPenalty,
-        presencePenalty: configStore.params.presencePenalty,
-        reasoningEnabled: configStore.params.reasoningEnabled,
+        temperature: convCfg.temperature,
+        maxTokens: convCfg.maxTokens,
+        topP: convCfg.topP,
+        frequencyPenalty: convCfg.frequencyPenalty,
+        presencePenalty: convCfg.presencePenalty,
+        reasoningEnabled: convCfg.reasoningEnabled,
         calculatorEnabled: configStore.params.calculatorEnabled,
         timeEnabled: configStore.params.timeEnabled,
         randomEnabled: configStore.params.randomEnabled,

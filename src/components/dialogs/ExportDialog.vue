@@ -1,10 +1,10 @@
 <template>
   <el-dialog v-model="visible" title="导出数据" width="90%" style="max-width: 500px">
     <div class="export-section">
-      <el-checkbox v-model="exportPrompts">预设提示词</el-checkbox>
+      <el-checkbox v-model="exportPresets">参数配置</el-checkbox>
       <el-checkbox v-model="exportApiConfigs">API 配置</el-checkbox>
       <el-checkbox v-model="exportConversations">对话记录</el-checkbox>
-      <el-checkbox v-model="exportConfig">参数与工具配置</el-checkbox>
+      <el-checkbox v-model="exportConfig">工具与搜索配置</el-checkbox>
     </div>
     <el-divider />
     <div class="export-section">
@@ -47,13 +47,13 @@ const visible = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { visible.value = v })
 watch(visible, (v) => emit('update:modelValue', v))
 
-const exportPrompts = ref(true)
+const exportPresets = ref(true)
 const exportApiConfigs = ref(true)
 const exportConversations = ref(false)
 const exportConfig = ref(false)
 const exportFormat = ref('json')
 
-const hasSelection = computed(() => exportPrompts.value || exportApiConfigs.value || exportConversations.value || exportConfig.value)
+const hasSelection = computed(() => exportPresets.value || exportApiConfigs.value || exportConversations.value || exportConfig.value)
 
 function doExport() {
   const data: Record<string, any> = {
@@ -62,9 +62,11 @@ function doExport() {
   }
 
   if (exportFormat.value === 'json') {
-    if (exportPrompts.value) {
-      data.prompts = promptStore.userPrompts
+    if (exportPresets.value) {
+      // Export all presets (user + built-in) for backup
+      data.presets = promptStore.allPrompts
       data.groups = promptStore.groups
+      data.activePresetId = configStore.activePresetId
     }
     if (exportApiConfigs.value) {
       data.apiConfigs = apiConfigStore.configs
@@ -74,6 +76,7 @@ function doExport() {
     }
     if (exportConfig.value) {
       data.params = { ...configStore.params }
+      data.activePresetId = configStore.activePresetId
       data.searchConfig = { ...searchStore.config }
       data.format = { ...configStore.format }
     }

@@ -43,7 +43,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
 import { usePromptStore } from '@/stores/promptStore'
-import { DEFAULT_CONFIG_PARAMS } from '@/utils/constants'
+import type { PromptConfig } from '@/types'
 
 const props = defineProps<{
   modelValue: boolean
@@ -61,11 +61,22 @@ const visible = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { visible.value = v })
 watch(visible, (v) => emit('update:modelValue', v))
 
+const defaultPresetConfig: PromptConfig = {
+  systemPrompt: '',
+  temperature: 0.7,
+  maxTokens: 0,
+  topP: 1.0,
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+  historyLimit: 20,
+  reasoningEnabled: false,
+}
+
 const form = reactive({
   title: '',
   description: '',
   groupKey: 'chat',
-  config: { ...DEFAULT_CONFIG_PARAMS },
+  config: { ...defaultPresetConfig },
 })
 
 watch(visible, (v) => {
@@ -82,7 +93,7 @@ watch(visible, (v) => {
     form.title = ''
     form.description = ''
     form.groupKey = promptStore.groups[0]?.key || 'chat'
-    form.config = { ...DEFAULT_CONFIG_PARAMS }
+    form.config = { systemPrompt: '', temperature: 0.7, maxTokens: 0, topP: 1.0, frequencyPenalty: 0, presencePenalty: 0, historyLimit: 20, reasoningEnabled: false }
   }
 })
 

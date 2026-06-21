@@ -5,9 +5,6 @@
         <ApiConfigPanel />
       </el-tab-pane>
       <el-tab-pane label="参数" name="params">
-        <ParamsPanel />
-      </el-tab-pane>
-      <el-tab-pane label="预设" name="prompts">
         <PromptsPanel />
       </el-tab-pane>
       <el-tab-pane label="工具" name="search">
@@ -23,7 +20,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import ApiConfigPanel from '@/components/settings/ApiConfigPanel.vue'
-import ParamsPanel from '@/components/settings/ParamsPanel.vue'
 import PromptsPanel from '@/components/settings/PromptsPanel.vue'
 import SearchPanel from '@/components/settings/SearchPanel.vue'
 import FormatPanel from '@/components/settings/FormatPanel.vue'

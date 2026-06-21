@@ -303,6 +303,16 @@ function escapeHtml(str: string): string {
   white-space: nowrap;
 }
 
+.msg-body :deep(p) {
+  margin: var(--chat-para-gap, 6px) 0;
+}
+.msg-body :deep(p:first-child) {
+  margin-top: 0;
+}
+.msg-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
 .msg-body.collapsed {
   display: -webkit-box;
   -webkit-line-clamp: 3;

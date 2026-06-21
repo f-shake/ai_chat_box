@@ -41,6 +41,8 @@ export interface Message {
   tool_call_id?: string
 }
 
+import type { PromptConfig } from './prompt'
+
 export interface Conversation {
   id: string
   title: string
@@ -48,6 +50,10 @@ export interface Conversation {
   createdAt: string
   updatedAt: string
   systemPrompt?: string
+  snapshot?: {
+    presetName: string
+    config: PromptConfig
+  }
   _aiTitle?: boolean
 }
 

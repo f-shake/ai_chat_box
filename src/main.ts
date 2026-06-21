@@ -55,6 +55,7 @@ async function bootstrap() {
 
   const configStore = useConfigStore()
   await configStore.loadParams()
+  await configStore.loadActivePreset()
   await configStore.loadFormat()
 
   const searchStore = useSearchStore()

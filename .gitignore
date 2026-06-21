@@ -38,3 +38,9 @@ node_modules/
 dist/
 *.local
 *.tsbuildinfo
+
+# ========================
+# Vite 插件自动生成
+# ========================
+auto-imports.d.ts
+components.d.ts

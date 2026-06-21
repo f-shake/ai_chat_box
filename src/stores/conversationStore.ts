@@ -2,9 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as db from '@/services/dbService'
 import { CONV_KEY, ACTIVE_KEY, COLLAPSE_LENGTH } from '@/utils/constants'
-import type { Conversation, Message, PendingFile } from '@/types'
+import type { Conversation, Message, PendingFile, PromptConfig } from '@/types'
 import { genId, getNow } from '@/utils/id'
 import { extractTextParts } from '@/utils/formatContent'
+import { useConfigStore } from '@/stores/configStore'
+import { usePromptStore } from '@/stores/promptStore'
 
 // Index used by MessageList for the system prompt message (not in currentMessages)
 export const SYSTEM_PROMPT_INDEX = -1
@@ -136,12 +138,19 @@ export const useConversationStore = defineStore('conversation', () => {
   // --- Conversation CRUD ---
 
   async function newConversation(): Promise<string> {
+    const configStore = useConfigStore()
     const conv: Conversation = {
       id: genId(),
       title: '新对话',
       messages: [],
       createdAt: getNow(),
       updatedAt: getNow(),
+      snapshot: {
+        presetName: configStore.activeConfig.systemPrompt
+          ? (usePromptStore().allPrompts.find((p) => p.config.systemPrompt === configStore.activeConfig.systemPrompt)?.title || '')
+          : '',
+        config: { ...configStore.activeConfig },
+      },
     }
     conversations.value.push(conv)
     activeConvId.value = conv.id
