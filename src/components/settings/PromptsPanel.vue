@@ -62,11 +62,15 @@
 import { ref } from 'vue'
 import { usePromptStore } from '@/stores/promptStore'
 import { useConfigStore } from '@/stores/configStore'
+import { useConversationStore } from '@/stores/conversationStore'
+import { useUiStore } from '@/stores/uiStore'
 import PromptDialog from './PromptDialog.vue'
 import GroupManagerDialog from './GroupManagerDialog.vue'
 
 const promptStore = usePromptStore()
 const configStore = useConfigStore()
+const conversationStore = useConversationStore()
+const uiStore = useUiStore()
 
 const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
@@ -93,12 +97,14 @@ function deletePrompt(id: string) {
   }).catch(() => {})
 }
 
-function apply(id: string) {
+async function apply(id: string) {
   const p = promptStore.applyPrompt(id)
   if (p) {
+    await conversationStore.newConversation()
     Object.assign(configStore.params, p.config)
     configStore.saveParams()
-    ElMessage.success(`已应用「${p.title}」`)
+    uiStore.closeSettings()
+    ElMessage.success(`已新建对话，应用了「${p.title}」`)
   }
 }
 

@@ -22,7 +22,21 @@ export function useClipboard() {
   }
 
   async function copyPlain(text: string): Promise<void> {
-    await navigator.clipboard.writeText(text)
+    // Try modern Clipboard API first
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text)
+        return
+      } catch {}
+    }
+    // Fallback: text selection + execCommand (works on all browsers incl. mobile)
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+    document.body.appendChild(ta)
+    ta.select()
+    try { document.execCommand('copy') } catch {}
+    document.body.removeChild(ta)
   }
 
   function extractPlainFromHtml(html: string): string {

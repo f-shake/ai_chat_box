@@ -69,10 +69,12 @@
 import { ref, watch } from 'vue'
 import { useSearchStore } from '@/stores/searchStore'
 import { useConfigStore } from '@/stores/configStore'
+import { useUiStore } from '@/stores/uiStore'
 import { testSearchProxy, testBochaConnection } from '@/services/searchService'
 
 const searchStore = useSearchStore()
 const configStore = useConfigStore()
+const uiStore = useUiStore()
 
 const searchEnabled = ref(searchStore.config.enabled)
 const provider = ref(searchStore.config.provider)
@@ -128,6 +130,7 @@ function onFetchPageChange() { configStore.params.fetchPageEnabled = fetchPageEn
 async function saveAll() {
   onSave()
   configStore.saveParams()
+  uiStore.closeSettings()
   ElMessage.success('配置已保存')
 }
 

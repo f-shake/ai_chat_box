@@ -113,7 +113,7 @@ export function useStreamChat() {
         '- 当用户需要进行数学计算时，必须使用 calculator 工具。\n'
         + '  将用户的数学表达式转换为 JavaScript 形式传入，不要自己心算。'
         + '  例如：2+2 → 传 "2+2"；sin30° → 传 "Math.sin(30*Math.PI/180)"。'
-        + '  浮点数精度问题（如 0.1+0.2）系统会自动纠正。'
+        + '  需要知悉 JavaScript 计算可能存在浮点数精度问题（如 0.1+0.2）。'
       )
     }
 

@@ -7,16 +7,21 @@
     <!-- User / System-prompt: bubble style, right-aligned -->
     <template v-if="message.role === 'user' || message.role === 'system-prompt'">
       <div class="bubble">
-        <div v-if="message.role === 'system-prompt'" class="bubble-label">系统提示词</div>
-        <!-- System prompt: hide content entirely when collapsed -->
-        <template v-if="message.role === 'system-prompt' && isCollapsed">
-          <!-- collapsed: only show the label above, no content -->
+        <div v-if="message.role === 'system-prompt'" class="bubble-label">
+          系统提示词
+          <el-tag v-if="presetName" size="small" style="margin-left: 4px">{{ presetName }}</el-tag>
+        </div>
+        <!-- Collapsed: show 3-line truncated plain text (no Markdown, so line-clamp works) -->
+        <template v-if="isCollapsed">
+          <div v-if="plainContent" class="msg-body collapsed" v-text="plainContent"></div>
         </template>
+        <!-- Expanded: full content -->
         <template v-else>
           <div v-if="isStreaming && !message.content" class="typing-indicator">
             <span></span><span></span><span></span>
           </div>
-          <div v-else-if="renderedHtml" :class="['msg-body', { collapsed: isCollapsed && message.role !== 'system-prompt' }]" v-html="renderedHtml"></div>
+          <div v-else-if="message.role === 'system-prompt' && plainContent" class="msg-body" v-text="plainContent"></div>
+          <div v-else-if="renderedHtml" class="msg-body" v-html="renderedHtml"></div>
         </template>
 
         <div class="bubble-footer">
@@ -24,7 +29,7 @@
             {{ isCollapsed ? '展开 ▾' : '收起 ▴' }}
           </button>
           <span class="timestamp">{{ timestamp }}</span>
-          <span v-if="showActions || !isStreaming" class="msg-actions">
+          <span v-if="!isStreaming" :class="['msg-actions', { 'touch-device': isTouchDevice }]">
             <el-button size="small" text title="复制" @click="copyMessage">
               <el-icon><CopyDocument /></el-icon>
             </el-button>
@@ -53,10 +58,13 @@
         <div v-else-if="renderedHtml" class="msg-body" v-html="renderedHtml"></div>
         <div class="msg-footer">
           <span class="timestamp">{{ timestamp }}</span>
-          <span v-if="showActions || !isStreaming" class="msg-actions">
-            <el-dropdown trigger="click" @command="handleCopyCommand">
-              <el-button size="small" text title="复制">
-                <el-icon><CopyDocument /></el-icon>
+          <span v-if="!isStreaming" :class="['msg-actions', { 'touch-device': isTouchDevice }]">
+            <el-button size="small" text @click="copyMessage" title="复制">
+              <el-icon><CopyDocument /></el-icon>
+            </el-button>
+            <el-dropdown trigger="click" @command="handleCopyCommand" size="small">
+              <el-button size="small" text>
+                <el-icon><ArrowDown /></el-icon>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -76,13 +84,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { formatContent } from '@/utils/formatContent'
 import { useClipboard } from '@/composables/useClipboard'
 import { useConversationStore } from '@/stores/conversationStore'
 import { COLLAPSE_LENGTH } from '@/utils/constants'
 import type { Message, MessageContent } from '@/types'
-import { CopyDocument, Edit, Refresh } from '@element-plus/icons-vue'
+import { CopyDocument, Edit, Refresh, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import ReasoningBlock from './ReasoningBlock.vue'
 
@@ -90,6 +98,7 @@ const props = defineProps<{
   message: Message
   isStreaming: boolean
   msgIndex: number
+  presetName?: string
 }>()
 
 const emit = defineEmits<{
@@ -100,13 +109,21 @@ const emit = defineEmits<{
 const conversationStore = useConversationStore()
 const { copyRich, copyPlain, getPlainTextFromElement } = useClipboard()
 const showActions = ref(false)
+const isTouchDevice = ref(false)
+
+onMounted(() => {
+  isTouchDevice.value = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+})
 
 // Collapse for user / system-prompt messages (not assistant)
 const canCollapse = computed(() => {
   if (props.isStreaming) return false
   if (props.message.role === 'assistant') return false
-  // System prompt always collapsible (regardless of length)
-  if (props.message.role === 'system-prompt') return true
+  // System prompt collapsible when above length threshold
+  if (props.message.role === 'system-prompt') {
+    const text = typeof props.message.content === 'string' ? props.message.content : ''
+    return text.length > COLLAPSE_LENGTH
+  }
   const text = typeof props.message.content === 'string' ? props.message.content : ''
   return text.length > COLLAPSE_LENGTH
 })
@@ -121,6 +138,12 @@ function toggleCollapse() {
 }
 
 const renderedHtml = ref('')
+
+const plainContent = computed(() => {
+  if (!props.message.content) return ''
+  const text = typeof props.message.content === 'string' ? props.message.content : ''
+  return escapeHtml(text)
+})
 
 watch(
   () => props.message.content,
@@ -156,9 +179,16 @@ const timestamp = computed(() => new Date().toLocaleTimeString())
 const hasReasoning = computed(() => !!(props.message.reasoning_content?.trim()))
 
 async function copyMessage() {
-  const text = typeof props.message.content === 'string' ? props.message.content : ''
   const html = renderedHtml.value
-  await copyRich(text, html)
+  if (!html) { ElMessage.success('已复制'); return }
+  // Extract plain text from rendered HTML (no Markdown markers like **, # etc.)
+  const div = document.createElement('div')
+  div.innerHTML = html
+  div.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6, li, blockquote, pre')
+    .forEach(el => { el.after('\n') })
+  div.querySelectorAll('br').forEach(el => { el.replaceWith('\n') })
+  const text = (div.textContent || '').replace(/\n{3,}/g, '\n\n').trim()
+  await copyPlain(text)
   ElMessage.success('已复制')
 }
 
@@ -273,6 +303,14 @@ function escapeHtml(str: string): string {
   white-space: nowrap;
 }
 
+.msg-body.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .msg-actions {
   display: flex;
   gap: 2px;
@@ -282,6 +320,11 @@ function escapeHtml(str: string): string {
 }
 
 .message:hover .msg-actions {
+  opacity: 1;
+}
+
+/* Touch devices: always show action buttons */
+.msg-actions.touch-device {
   opacity: 1;
 }
 

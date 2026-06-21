@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useConfigStore } from '@/stores/configStore'
 import { useStreamChat } from '@/composables/useStreamChat'
@@ -75,6 +75,17 @@ const { sendMessage } = useStreamChat()
 
 const inputRef = ref<InstanceType<typeof ElInput> | null>(null)
 const inputText = ref('')
+
+// Populate input text when editing a message
+watch(() => conversationStore.editingMsgIdx, (idx) => {
+  if (idx >= 0) {
+    const msg = conversationStore.currentMessages[idx]
+    if (msg && typeof msg.content === 'string') {
+      inputText.value = msg.content
+    }
+    nextTick(() => inputRef.value?.focus())
+  }
+})
 
 // Disable "new conversation" button when already at an empty default conversation
 const isNewConvRedundant = computed(() => {

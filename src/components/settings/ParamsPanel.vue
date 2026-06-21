@@ -52,8 +52,10 @@
 
 <script setup lang="ts">
 import { useConfigStore } from '@/stores/configStore'
+import { useUiStore } from '@/stores/uiStore'
 
 const configStore = useConfigStore()
+const uiStore = useUiStore()
 
 function autoSave() {
   configStore.saveParams()
@@ -61,6 +63,7 @@ function autoSave() {
 
 function saveParams() {
   configStore.saveParams()
+  uiStore.closeSettings()
   ElMessage.success('参数已保存')
 }
 

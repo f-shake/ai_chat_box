@@ -6,6 +6,7 @@
       :message="systemPromptMessage"
       :is-streaming="false"
       :msg-index="SYSTEM_PROMPT_INDEX"
+      :preset-name="systemPromptPresetName"
     />
 
     <!-- Messages -->
@@ -28,6 +29,7 @@
 import { ref, computed, watch } from 'vue'
 import { useConversationStore, SYSTEM_PROMPT_INDEX } from '@/stores/conversationStore'
 import { useConfigStore } from '@/stores/configStore'
+import { usePromptStore } from '@/stores/promptStore'
 import type { Message } from '@/types'
 import MessageBubble from './MessageBubble.vue'
 import EmptyState from './EmptyState.vue'
@@ -39,6 +41,7 @@ const emit = defineEmits<{
 
 const conversationStore = useConversationStore()
 const configStore = useConfigStore()
+const promptStore = usePromptStore()
 
 const containerRef = ref<HTMLElement | null>(null)
 const userScrolledAway = ref(false)
@@ -48,6 +51,13 @@ const messages = computed(() => conversationStore.currentMessages)
 const isStreaming = computed(() => conversationStore.isStreaming)
 
 const systemPrompt = computed(() => configStore.params.systemPrompt)
+
+const systemPromptPresetName = computed(() => {
+  const sp = systemPrompt.value
+  if (!sp) return ''
+  const match = promptStore.allPrompts.find((p) => p.config?.systemPrompt === sp)
+  return match ? match.title : ''
+})
 
 const systemPromptMessage = computed<Message>(() => ({
   role: 'system-prompt',

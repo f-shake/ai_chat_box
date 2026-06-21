@@ -38,16 +38,18 @@ function handleEdit(idx: number) {
 }
 
 async function handleRegenerate() {
-  // Remove last assistant message and resend the last user message
   const msgs = conversationStore.currentMessages
   if (msgs.length < 2) return
   const lastAssistant = msgs[msgs.length - 1]
   if (lastAssistant.role !== 'assistant') return
   conversationStore.removeMessage(msgs.length - 1)
-  const lastUser = msgs[msgs.length - 1]
+  const lastUserIdx = msgs.length - 1
+  const lastUser = msgs[lastUserIdx]
   if (lastUser.role !== 'user') return
-  const content = lastUser.content
-  sendMessage(typeof content === 'string' ? content : undefined)
+  const content = typeof lastUser.content === 'string' ? lastUser.content : ''
+  // Use edit mechanism: splice old user message, push new one, then stream
+  conversationStore.editingMsgIdx = lastUserIdx
+  sendMessage(content)
 }
 </script>
 
