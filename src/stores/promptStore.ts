@@ -41,6 +41,7 @@ export const usePromptStore = defineStore('prompt', () => {
         presencePenalty: p.config?.presencePenalty ?? DEFAULT_CONFIG_PARAMS.presencePenalty,
         historyLimit: p.config?.historyLimit ?? DEFAULT_CONFIG_PARAMS.historyLimit,
         reasoningEnabled: p.config?.reasoningEnabled ?? DEFAULT_CONFIG_PARAMS.reasoningEnabled,
+        calculatorEnabled: p.config?.calculatorEnabled ?? DEFAULT_CONFIG_PARAMS.calculatorEnabled,
       }
 
       items.push({

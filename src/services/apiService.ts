@@ -28,7 +28,6 @@ export interface ApiServiceOptions {
   apiKey: string
   model: string
   systemPrompt: string
-  searchGuidance: string
   messages: Array<{ role: string; content: any; tool_calls?: ToolCall[]; tool_call_id?: string }>
   temperature: number
   maxTokens: number
@@ -37,6 +36,7 @@ export interface ApiServiceOptions {
   presencePenalty: number
   reasoningEnabled: boolean
   searchEnabled: boolean
+  calculatorEnabled: boolean
 }
 
 export interface StreamResult {
@@ -46,13 +46,15 @@ export interface StreamResult {
   finishReason: string | null
 }
 
-function buildTools() {
-  return [
-    {
+function buildTools(searchEnabled: boolean, calculatorEnabled: boolean) {
+  const tools: any[] = []
+
+  if (searchEnabled) {
+    tools.push({
       type: 'function' as const,
       function: {
         name: 'web_search',
-        description: '搜索互联网获取最新信息。结果来自搜狗、必应、360等多个搜索引擎。当用户询问实时新闻、最新事件、不确定的事实、需要查询资料等场景时使用。',
+        description: '搜索互联网获取实时信息。当用户询问新闻、天气、最新事件、不了解的知识、需要查询资料、验证事实时，必须调用此工具。不要用自己的知识回答不确定的内容，优先搜索。',
         parameters: {
           type: 'object',
           properties: {
@@ -62,12 +64,12 @@ function buildTools() {
           required: ['query'],
         },
       },
-    },
-    {
+    })
+    tools.push({
       type: 'function' as const,
       function: {
         name: 'web_fetch',
-        description: '获取指定URL的详细页面内容。当搜索结果摘要信息不足时，用此工具获取完整页面内容。',
+        description: '获取指定URL的详细页面内容。当搜索结果摘要信息不足或用户要求查看具体页面时，用此工具获取完整页面内容。',
         parameters: {
           type: 'object',
           properties: {
@@ -76,8 +78,27 @@ function buildTools() {
           required: ['url'],
         },
       },
-    },
-  ]
+    })
+  }
+
+  if (calculatorEnabled) {
+    tools.push({
+      type: 'function' as const,
+      function: {
+        name: 'calculator',
+        description: '执行数学计算。当用户需要进行算术运算、数学公式计算时请使用此工具。传入符合 JavaScript 的表达式，例如 "1+2*3"、"Math.log(3*Math.pow(3,4))"、"Math.sin(30*Math.PI/180)"。注意：用户输入可能不规范的运算符（如 × 转为 * 、÷ 转为 /），请先转换为合法 JS 表达式再传入。返回结果会自动纠正浮点数精度问题（如 0.1+0.2 会返回 0.3 而非 0.300...04）。',
+        parameters: {
+          type: 'object',
+          properties: {
+            expression: { type: 'string', description: '要计算的 JavaScript 表达式' },
+          },
+          required: ['expression'],
+        },
+      },
+    })
+  }
+
+  return tools
 }
 
 export async function streamChat(
@@ -86,7 +107,7 @@ export async function streamChat(
   signal: AbortSignal
 ): Promise<StreamResult> {
   const {
-    apiUrl, apiKey, model, systemPrompt, searchGuidance,
+    apiUrl, apiKey, model, systemPrompt,
     messages, temperature, maxTokens, topP, frequencyPenalty,
     presencePenalty, reasoningEnabled, searchEnabled,
   } = options
@@ -114,7 +135,9 @@ export async function streamChat(
   }
 
   if (searchEnabled) {
-    body.tools = buildTools()
+    body.tools = buildTools(options.searchEnabled, options.calculatorEnabled)
+  } else if (options.calculatorEnabled) {
+    body.tools = buildTools(false, options.calculatorEnabled)
   }
 
   const headers: Record<string, string> = {

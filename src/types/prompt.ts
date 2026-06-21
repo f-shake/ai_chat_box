@@ -7,6 +7,7 @@ export interface PromptConfig {
   presencePenalty: number
   historyLimit: number
   reasoningEnabled: boolean
+  calculatorEnabled: boolean
 }
 
 export interface Prompt {

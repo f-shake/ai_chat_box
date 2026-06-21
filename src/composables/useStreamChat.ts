@@ -85,20 +85,35 @@ export function useStreamChat() {
     const isBocha = searchStore.config.provider === 'bocha'
     const hasSearchConfig = isBocha ? searchStore.config.bochaApiKey : searchStore.config.proxyUrl
     const searchEnabled = searchStore.config.enabled && !!hasSearchConfig
-    let searchGuidance = ''
+    const calcEnabled = configStore.params.calculatorEnabled
+
+    // Build unified tools guidance
+    const toolsGuidance: string[] = []
     if (searchEnabled) {
       if (isBocha) {
-        searchGuidance = '\n\n【联网搜索能力】\n'
-          + '你可以使用 web_search 工具搜索互联网获取最新信息。'
-          + '搜索结果包含标题、URL、摘要、来源网站和发布时间。'
-          + '根据搜索结果中的信息回答用户的问题，并引用相关来源。'
+        toolsGuidance.push(
+          '- 当用户询问实时信息、新闻、不确定的事实、需要查询资料时，必须使用 web_search 工具搜索互联网。\n'
+          + '  搜索结果包含标题、URL、摘要、来源和发布时间。根据搜索结果回答并引用来源。'
+        )
       } else {
-        searchGuidance = '\n\n【联网搜索能力】\n'
-          + '1. 你可以使用 web_search 搜索互联网获取最新信息。\n'
-          + '2. 对于你知道的网站（如天气网站、财经网站等），可以直接用 web_fetch 获取内容，不必先搜索。\n'
-          + '3. 如果搜索结果摘要中的信息不足，请用 web_fetch 打开最相关的链接获取完整内容。\n'
-          + '4. 搜索结果同时来自多个搜索引擎，每个引擎的结果分开返回，请综合多个来源的信息给出更准确的回答。'
+        toolsGuidance.push(
+          '- 当用户询问实时信息、新闻、不确定的事实、需要查询资料时，必须使用 web_search 工具搜索互联网。\n'
+          + '  如果搜索结果摘要信息不足，使用 web_fetch 打开最相关的链接获取完整内容。'
+        )
       }
+    }
+    if (calcEnabled) {
+      toolsGuidance.push(
+        '- 当用户需要进行数学计算时，必须使用 calculator 工具。\n'
+        + '  将用户的数学表达式转换为 JavaScript 形式传入，不要自己心算。'
+        + '  例如：2+2 → 传 "2+2"；sin30° → 传 "Math.sin(30*Math.PI/180)"。'
+        + '  浮点数精度问题（如 0.1+0.2）系统会自动纠正。'
+      )
+    }
+
+    let toolsGuidanceText = ''
+    if (toolsGuidance.length > 0) {
+      toolsGuidanceText = '\n\n【可用工具】\n以下工具可以调用，请根据用户需求主动选择合适的工具：\n' + toolsGuidance.join('\n')
     }
 
     // Build API messages
@@ -106,9 +121,9 @@ export function useStreamChat() {
     const msgsForApi: Array<{ role: string; content: any; tool_calls?: ToolCall[]; tool_call_id?: string }> = []
 
     if (sys) {
-      msgsForApi.push({ role: 'system', content: sys + searchGuidance })
-    } else if (searchGuidance) {
-      msgsForApi.push({ role: 'system', content: searchGuidance })
+      msgsForApi.push({ role: 'system', content: sys + toolsGuidanceText })
+    } else if (toolsGuidanceText) {
+      msgsForApi.push({ role: 'system', content: toolsGuidanceText })
     }
 
     const historySlice = conversationStore.cutMessagesForApi(historyLimit)
@@ -153,7 +168,6 @@ export function useStreamChat() {
         apiKey: apiCfg.apiKey,
         model: apiCfg.model,
         systemPrompt: sys,
-        searchGuidance,
         messages: msgsForApi,
         temperature: configStore.params.temperature,
         maxTokens: configStore.params.maxTokens,
@@ -161,6 +175,7 @@ export function useStreamChat() {
         frequencyPenalty: configStore.params.frequencyPenalty,
         presencePenalty: configStore.params.presencePenalty,
         reasoningEnabled: configStore.params.reasoningEnabled,
+        calculatorEnabled: configStore.params.calculatorEnabled,
         searchEnabled,
       }
 
@@ -248,6 +263,23 @@ export function useStreamChat() {
           })
           if (msg) {
             const status = `\n\n> 搜索完成（${searchResults.length} 条结果）：${args.query}`
+            msg.content = (msg.content || '') + status
+          }
+        } else if (tc.function.name === 'calculator') {
+          let result: any
+          try {
+            // Safe: eval runs in browser sandbox, same as any frontend JS
+            result = String(eval(`'use strict'; (${args.expression})`))
+          } catch (evalErr: any) {
+            result = `计算错误：${evalErr.message}`
+          }
+          results.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: JSON.stringify({ result }),
+          })
+          if (msg) {
+            const status = `\n\n> 计算结果：${result}`
             msg.content = (msg.content || '') + status
           }
         } else if (tc.function.name === 'web_fetch') {

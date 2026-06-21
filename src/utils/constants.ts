@@ -31,6 +31,7 @@ export const DEFAULT_CONFIG_PARAMS = {
   presencePenalty: 0,
   historyLimit: 20,
   reasoningEnabled: false,
+  calculatorEnabled: false,
 }
 
 export const DEFAULT_FORMAT_CONFIG = {
