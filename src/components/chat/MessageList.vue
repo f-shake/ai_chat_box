@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useConversationStore, SYSTEM_PROMPT_INDEX } from '@/stores/conversationStore'
 import { useConfigStore } from '@/stores/configStore'
 import type { Message } from '@/types'
@@ -42,6 +42,7 @@ const configStore = useConfigStore()
 
 const containerRef = ref<HTMLElement | null>(null)
 const userScrolledAway = ref(false)
+let scrollRaf = 0
 
 const messages = computed(() => conversationStore.currentMessages)
 const isStreaming = computed(() => conversationStore.isStreaming)
@@ -62,13 +63,13 @@ const visibleMessages = computed(() => {
   })
 })
 
-// Auto-scroll
+// Auto-scroll — use requestAnimationFrame so scroll runs AFTER
+// the browser has laid out the newly rendered content.
+// Double-rAF catches async rendering (marked.parse, KaTeX, image loads).
 watch(
   () => messages.value.length,
   () => {
-    if (!userScrolledAway.value) {
-      nextTick(() => scrollToBottom())
-    }
+    if (!userScrolledAway.value) scrollToBottom()
   }
 )
 
@@ -78,11 +79,15 @@ watch(
     return lastMsg?.content
   },
   () => {
-    if (!userScrolledAway.value) {
-      nextTick(() => scrollToBottom())
-    }
+    if (!userScrolledAway.value) scrollToBottom()
   }
 )
+
+// Final scroll when streaming ends, in case the last async render
+// came in after the content watch fired.
+watch(isStreaming, (now, was) => {
+  if (was && !now) scrollToBottom()
+})
 
 function handleScroll() {
   const el = containerRef.value
@@ -93,10 +98,19 @@ function handleScroll() {
 }
 
 function scrollToBottom() {
-  const el = containerRef.value
-  if (el) {
-    el.scrollTop = el.scrollHeight
-  }
+  cancelAnimationFrame(scrollRaf)
+  scrollRaf = requestAnimationFrame(() => {
+    const el = containerRef.value
+    if (el) {
+      el.scrollTop = el.scrollHeight
+    }
+    // Second pass catches async rendering that completed after the first rAF
+    scrollRaf = requestAnimationFrame(() => {
+      if (el) {
+        el.scrollTop = el.scrollHeight
+      }
+    })
+  })
 }
 
 function handleEdit(idx: number) {
